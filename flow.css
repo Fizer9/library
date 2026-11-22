@@ -72,6 +72,8 @@ body:has(#toc-dialog[open]) { overflow: hidden; }
 .edition-grid { display: grid; gap: 12px; grid-template-columns: repeat(2,minmax(0,1fr)); margin-top: 16px; }
 .book-file-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-top: 16px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
 .book-file-panel p { color: var(--muted); font-size: .875rem; }
+.book-downloads { display: flex; flex-wrap: wrap; gap: 6px 18px; width: 100%; margin: 0; padding: 0; list-style: none; font-size: .875rem; }
+.book-downloads a { display: inline-block; padding-block: 4px; }
 .book-file-status { margin: 0 0 12px; color: var(--green); font-size: .9rem; }
 .book-file-status.error { color: #822e28; }
 #open-book-file:disabled { opacity: .65; cursor: wait; }
