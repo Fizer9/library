@@ -266,9 +266,8 @@ function bibleChapter(place) {
       const label = `${titleFor(target)}:${verse}${end ? `–${end}` : ''}`;
       return [...(index ? [' · '] : []), {text: label, place: target}];
     });
-    const note = {title: `Параллельные места · ${titleFor(place)}:${number}`, paragraphs: [parts]};
-    const words = text.split(/([\p{L}\p{M}\p{N}]+(?:[-‑’'][\p{L}\p{M}\p{N}]+)*)/u);
-    return [number, text, words.map((word, index) => index % 2 ? {...note, text: word, tabStop: index === 1} : word)];
+    const note = {text: 'Ссылки', title: `Параллельные места · ${titleFor(place)}:${number}`, paragraphs: [parts]};
+    return [number, text, [text, ' ', note]];
   });
   return {verses};
 }
@@ -437,8 +436,7 @@ function appendStudyNotes(body, parts, place, verse) {
     button.className = part.title ? 'study-note-word study-note-verse' : 'study-note-word';
     button.setAttribute('aria-controls', studyNote.id);
     button.setAttribute('aria-expanded', 'false');
-    button.setAttribute('aria-label', part.title ? `${part.text} · ${part.title}` : `Сноска ${verse}${part.marker}: ${part.text}`);
-    if (part.tabStop === false) button.tabIndex = -1;
+    button.setAttribute('aria-label', part.title ?? `Сноска ${verse}${part.marker}: ${part.text}`);
     button.append(part.text);
     if (part.marker) {
       const marker = document.createElement('sup');
