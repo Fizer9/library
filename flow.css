@@ -108,6 +108,7 @@ body:has(#toc-dialog[open], #study-dialog[open]) { overflow: hidden; }
 .study-note { display: flex; flex-direction: column; max-height: calc(100dvh - 94px); background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
 .study-note > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 13px; border-bottom: 1px solid var(--line); }
 .study-note h2 { font-size: 1rem; overflow-wrap: anywhere; }
+#study-close { display: grid; place-items: center; flex: none; width: 40px; height: 40px; padding: 0; font-size: 1.45rem; line-height: 1; }
 .study-note-body { overflow: auto; overscroll-behavior: contain; padding: 10px 13px; }
 .study-note-body > p { margin-bottom: 8px; font-size: .9rem; }
 .study-reference { border: 0; padding: 0; background: transparent; color: var(--green); font: inherit; font-weight: 650; text-decoration: underline; text-underline-offset: .16em; }
@@ -116,8 +117,11 @@ body:has(#toc-dialog[open], #study-dialog[open]) { overflow: hidden; }
 .study-preview-verse, .study-preview-status { margin: 0 0 5px; font-size: .9rem; line-height: 1.55; }
 .study-preview-status { color: var(--muted); }
 .study-preview .button { margin-top: 4px; }
-#study-dialog { position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0; border: 0; width: min(360px, calc(100vw - 24px)); max-width: none; height: 100dvh; max-height: none; background: transparent; color: inherit; }
+#study-dialog { position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0; border: 0; width: min(360px, calc(100vw - 24px)); max-width: none; height: 100dvh; max-height: none; background: transparent; color: inherit; transform: translateX(var(--study-swipe, 0px)); transition: transform .15s ease-out; }
+#study-dialog.swiping { transition: none; }
+#study-dialog, #study-dialog .study-note-body { touch-action: pan-y pinch-zoom; }
 #study-dialog .study-note { height: 100%; max-height: none; border-radius: 15px 0 0 15px; }
+@media (prefers-reduced-motion: reduce) { #study-dialog { transition: none; } }
 .chapter-preface { margin: 8px 8px 14px; color: var(--muted); }
 .chapter-preface p + p { margin-top: 8px; }
 .reading-message { margin: 7px 2px 10px; max-width: 54ch; }

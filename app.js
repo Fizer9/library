@@ -297,6 +297,45 @@ function closeStudyNote(restoreFocus = true) {
   }
 }
 
+function enableStudySwipe() {
+  let swipe;
+
+  function resetSwipe() {
+    swipe = null;
+    studyDialog.classList.remove('swiping');
+    studyDialog.style.removeProperty('--study-swipe');
+  }
+
+  studyDialog.addEventListener('pointerdown', event => {
+    if (event.pointerType !== 'touch' || !event.isPrimary || !studyNote.contains(event.target)) return;
+    swipe = {id: event.pointerId, x: event.clientX, y: event.clientY, dragging: false};
+  });
+  studyDialog.addEventListener('pointermove', event => {
+    if (swipe?.id !== event.pointerId) return;
+    const dx = event.clientX - swipe.x;
+    const dy = event.clientY - swipe.y;
+    if (!swipe.dragging) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 12) return;
+      if (dx <= Math.abs(dy) * 1.3) { resetSwipe(); return; }
+      swipe.dragging = true;
+      studyDialog.classList.add('swiping');
+      studyDialog.setPointerCapture(event.pointerId);
+    }
+    studyDialog.style.setProperty('--study-swipe', `${Math.max(0, dx)}px`);
+  });
+  studyDialog.addEventListener('pointerup', event => {
+    if (swipe?.id !== event.pointerId) return;
+    const threshold = Math.min(110, studyDialog.offsetWidth / 3);
+    const dismiss = swipe.dragging && event.clientX - swipe.x >= threshold;
+    resetSwipe();
+    if (dismiss) closeStudyNote();
+  });
+  studyDialog.addEventListener('pointercancel', event => {
+    if (swipe?.id === event.pointerId) resetSwipe();
+  });
+  studyDialog.addEventListener('close', resetSwipe);
+}
+
 async function loadStudyPreview(container, place, edition) {
   try {
     const data = place.edition === 'bible' ? {verses: bibleData[place.book][place.chapter]} : await readEpubChapter(edition.archive, place);
@@ -600,6 +639,7 @@ $('toc-close').addEventListener('click', closeToc);
 tocDialog.addEventListener('close', syncToc);
 tocNarrow.addEventListener('change', syncToc);
 studyClose.addEventListener('click', () => closeStudyNote());
+enableStudySwipe();
 studyDialog.addEventListener('cancel', event => {
   event.preventDefault();
   closeStudyNote();
