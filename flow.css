@@ -157,8 +157,26 @@ body:has(#toc-dialog[open], #study-dialog[open]) { overflow: hidden; }
 .reader-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; padding-bottom: 15px; border-bottom: 1px solid var(--line); }
 #font-toggle { min-width: 44px; }
 #passage { padding: 13px 0 16px; }
-.verse { display: grid; grid-template-columns: 2rem minmax(0,1fr); align-items: baseline; gap: 8px; padding: 6px 8px 6px 4px; font: var(--text-size)/1.6 var(--serif); border-radius: 6px; scroll-margin: 14px; overflow-wrap: anywhere; }
+.verse { display: grid; grid-template-columns: 2rem minmax(0,1fr) 2rem; align-items: baseline; gap: 8px; padding: 6px 8px 6px 4px; font: var(--text-size)/1.6 var(--serif); border-radius: 6px; scroll-margin: 14px; overflow-wrap: anywhere; }
 .verse[aria-current=true] { background: var(--tint); box-shadow: inset 2px 0 var(--accent); }
+.verse.personal-highlight { background: #f9e7a8; }
+.verse-annotation { min-height: 32px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: 1rem/1 system-ui, sans-serif; }
+.verse-annotation:hover, .verse-annotation:focus-visible { background: var(--tint); color: var(--accent); }
+#sync-settings { margin-top: .55rem; }
+.personal-dialog { width: min(460px, calc(100% - 24px)); max-height: calc(100dvh - 24px); padding: clamp(16px, 4vw, 24px); border: 1px solid var(--line); border-radius: 15px; color: var(--ink); background: var(--paper); overflow-wrap: anywhere; }
+.personal-dialog::backdrop { background: #31241d65; }
+body:has(.personal-dialog[open]) { overflow: hidden; }
+.personal-dialog h2 { font-size: 1.3rem; }
+.personal-dialog form { display: grid; gap: 8px; margin-top: 8px; }
+.personal-dialog label { font-weight: 600; }
+.personal-dialog input:not([type=checkbox]), .personal-dialog textarea { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: var(--paper); color: inherit; font: inherit; }
+.personal-dialog textarea { resize: vertical; }
+.personal-dialog textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.personal-dialog p, .personal-dialog details { font-size: .9rem; }
+.personal-dialog details li { white-space: pre-wrap; }
+.personal-checkbox { display: flex; align-items: center; gap: 6px; min-height: 36px; }
+.personal-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+#sync-dialog > p { margin-top: 8px; }
 .verse-number { width: 100%; text-align: center; font: 650 .8rem/1.3 'Segoe UI', system-ui, sans-serif; text-decoration: none; font-variant-numeric: tabular-nums; }
 .verse-number:hover { text-decoration: underline; }
 .study-note-word { border: 0; border-radius: 4px; padding: 0 .12em; background: transparent; color: var(--accent); font: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .15em; }
@@ -203,6 +221,6 @@ body:has(#toc-dialog[open], #study-dialog[open]) { overflow: hidden; }
   .edition-grid { gap: 9px; }
   .edition-cover { min-height: 148px; padding: 28px 9px 11px 13px; }
   .edition-cover::before { inset: 8px 8px auto 12px; height: 19px; }
-  .verse { grid-template-columns: 1.55rem minmax(0,1fr); gap: 5px; padding-inline: 2px; }
+  .verse { grid-template-columns: 1.55rem minmax(0,1fr) 2rem; gap: 5px; padding-inline: 2px; }
 }
 

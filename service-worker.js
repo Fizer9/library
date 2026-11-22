@@ -1,10 +1,10 @@
 const scope = new URL(self.registration.scope);
 const cachePrefix = `potok:${scope.pathname}:`;
-const cacheName = `${cachePrefix}v5`;
+const cacheName = `${cachePrefix}v6`;
 const home = new URL('index.html', scope).href;
 const assets = new Set([
   home,
-  ...['flow.css', 'catalog.js', 'bible-data.js', 'bible-references.js', 'guide-references.js', 'epub.js', 'app.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']
+  ...['flow.css', 'catalog.js', 'bible-data.js', 'bible-references.js', 'guide-references.js', 'epub.js', 'app.js', 'annotations.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']
     .map(file => new URL(file, scope).href),
 ]);
 

@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; manifest-src 'self'; worker-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; manifest-src 'self'; worker-src 'self'; connect-src https://api.github.com; form-action 'none'; base-uri 'none'; object-src 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <meta name="theme-color" content="#f6eee4">
@@ -16,6 +16,7 @@
   <script src="guide-references.js" defer></script>
   <script src="epub.js" defer></script>
   <script src="app.js" defer></script>
+  <script src="annotations.js" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -47,6 +48,7 @@
         <section id="library-view" aria-labelledby="library-title" hidden>
           <header class="page-heading">
             <h1 id="library-title" tabindex="-1">Библиотека</h1>
+            <button id="sync-settings" class="button" type="button">Синхронизация GitHub</button>
           </header>
           <a class="continue" id="continue-link" hidden>
             <span class="continue-copy">
@@ -105,6 +107,43 @@
     </div>
     <dialog id="toc-dialog" aria-labelledby="toc-title"></dialog>
     <dialog id="study-dialog" aria-labelledby="study-note-title"></dialog>
+    <dialog id="annotation-dialog" class="personal-dialog" aria-labelledby="annotation-title">
+      <form id="annotation-form" method="dialog">
+        <h2 id="annotation-title"></h2>
+        <label for="annotation-note">Личная заметка</label>
+        <textarea id="annotation-note" rows="5" maxlength="10000"></textarea>
+        <details id="annotation-conflicts" hidden>
+          <summary>Другие версии заметки</summary>
+          <ul id="annotation-versions"></ul>
+          <label class="personal-checkbox"><input id="annotation-resolve" type="checkbox"> Оставить только заметку из поля выше</label>
+        </details>
+        <label class="personal-checkbox"><input id="annotation-highlight" type="checkbox"> Выделить стих</label>
+        <p id="annotation-error" class="error" role="status" hidden></p>
+        <div class="personal-actions">
+          <button id="annotation-cancel" class="button" type="button">Отмена</button>
+          <button class="button primary" type="submit">Сохранить</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="sync-dialog" class="personal-dialog" aria-labelledby="sync-title">
+      <h2 id="sync-title">Синхронизация GitHub</h2>
+      <form id="sync-form" method="dialog">
+        <p>Укажи свой приватный репозиторий. Подключение объединит его записи с заметками и выделениями этого браузера.</p>
+        <label for="sync-repo">Репозиторий (владелец/название)</label>
+        <input id="sync-repo" placeholder="владелец/reader-notes" maxlength="140" required>
+        <label for="sync-token">Токен GitHub</label>
+        <input id="sync-token" type="password" autocomplete="off" required>
+        <p>Нужен fine-grained personal access token с доступом к этому репозиторию и правами Contents: Read and write. Токен сохранится в этом браузере.</p>
+        <button id="sync-connect" class="button primary" type="submit">Подключить</button>
+      </form>
+      <p id="sync-repository" hidden></p>
+      <p id="sync-status" role="status" aria-live="polite"></p>
+      <div class="personal-actions">
+        <button id="sync-close" class="button" type="button">Закрыть</button>
+        <button id="sync-disconnect" class="button" type="button" hidden>Отключить</button>
+        <button id="sync-now" class="button primary" type="button" hidden>Синхронизировать</button>
+      </div>
+    </dialog>
   </main>
 </body>
 </html>

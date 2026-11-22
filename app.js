@@ -513,6 +513,12 @@ function showChapter(place, data, version) {
     const numberLink = link(number, route({...place, verse: start, end: undefined}), 'verse-number');
     numberLink.setAttribute('aria-label', `Стих ${number}`);
     row.append(numberLink, body);
+    const annotation = document.createElement('button');
+    annotation.type = 'button';
+    annotation.className = 'verse-annotation';
+    annotation.dataset.annotation = route({...place, verse: start, end: end > start ? end : undefined});
+    annotation.dataset.number = number;
+    row.append(annotation);
     if (end >= place.verse && start <= (place.end ?? place.verse) && (place.verse !== 1 || place.end)) {
       row.setAttribute('aria-current', 'true');
       firstMarked ??= row;
@@ -521,6 +527,7 @@ function showChapter(place, data, version) {
   }
   for (const paragraph of data.paragraphs ?? []) fragment.append(displayText(paragraph, 'section-paragraph'));
   passage.replaceChildren(fragment);
+  passage.dispatchEvent(new Event('chapter-shown'));
   renderSource(place, data.rights);
   if (!firstMarked && place.verse > 1) {
     const error = $('jump-error');
