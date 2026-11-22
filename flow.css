@@ -103,7 +103,8 @@ body:has(#toc-dialog[open], #study-dialog[open]) { overflow: hidden; }
 .study-note-word { border: 0; border-radius: 4px; padding: 0 .12em; background: transparent; color: var(--green); font: inherit; font-weight: 650; text-decoration: underline; text-underline-offset: .15em; }
 .study-note-word:hover, .study-note-word[aria-expanded=true] { background: var(--tint); }
 .study-note-word sup { margin-inline-start: .14em; font-size: .63em; line-height: 0; }
-.study-note-verse { margin-inline-start: 3px; padding: 2px 5px; font-size: .7em; line-height: 1.3; white-space: nowrap; }
+.study-note-verse { padding: 0; color: inherit; font: inherit; text-decoration-color: var(--line); }
+.study-note-verse:is(:hover, :focus-visible, [aria-expanded=true]) { text-decoration-color: var(--green); }
 #study-sidebar { position: sticky; top: 78px; min-width: 0; }
 .study-note { display: flex; flex-direction: column; max-height: calc(100dvh - 94px); background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
 .study-note > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 13px; border-bottom: 1px solid var(--line); }

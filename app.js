@@ -253,17 +253,22 @@ function isReadableReference(destination) {
 function bibleChapter(place) {
   const references = typeof bibleReferences === 'undefined' ? null : bibleReferences[place.book]?.[place.chapter];
   const verses = bibleData[place.book][place.chapter].map(([number, text]) => {
-    const entries = references?.[parseInt(number, 10)];
-    if (!entries) return [number, text];
-    const parts = entries.split(' ').flatMap((reference, index) => {
+    const [start, end] = verseBounds(number);
+    const entries = new Set();
+    for (let verse = start; verse <= end; verse++) {
+      for (const reference of references?.[verse]?.split(' ') ?? []) entries.add(reference);
+    }
+    if (!entries.size) return [number, text];
+    const parts = [...entries].flatMap((reference, index) => {
       const [book, chapter, range] = reference.split('.');
       const [verse, end] = range.split('-').map(Number);
       const target = {edition: 'bible', book, chapter: +chapter, verse, ...(end && {end})};
       const label = `${titleFor(target)}:${verse}${end ? `–${end}` : ''}`;
       return [...(index ? [' · '] : []), {text: label, place: target}];
     });
-    const note = {text: 'Ссылки', title: `Параллельные места · ${titleFor(place)}:${number}`, paragraphs: [parts]};
-    return [number, text, [text, ' ', note]];
+    const note = {title: `Параллельные места · ${titleFor(place)}:${number}`, paragraphs: [parts]};
+    const words = text.split(/([\p{L}\p{M}\p{N}]+(?:[-‑’'][\p{L}\p{M}\p{N}]+)*)/u);
+    return [number, text, words.map((word, index) => index % 2 ? {...note, text: word, tabStop: index === 1} : word)];
   });
   return {verses};
 }
@@ -432,7 +437,8 @@ function appendStudyNotes(body, parts, place, verse) {
     button.className = part.title ? 'study-note-word study-note-verse' : 'study-note-word';
     button.setAttribute('aria-controls', studyNote.id);
     button.setAttribute('aria-expanded', 'false');
-    button.setAttribute('aria-label', part.title ?? `Сноска ${verse}${part.marker}: ${part.text}`);
+    button.setAttribute('aria-label', part.title ? `${part.text} · ${part.title}` : `Сноска ${verse}${part.marker}: ${part.text}`);
+    if (part.tabStop === false) button.tabIndex = -1;
     button.append(part.text);
     if (part.marker) {
       const marker = document.createElement('sup');
