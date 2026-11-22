@@ -9,6 +9,12 @@ const tocDialog = $('toc-dialog');
 const tocToggle = $('toc-toggle');
 const tocContent = $('toc-content');
 const tocNarrow = matchMedia('(max-width: 800px)');
+const studyNarrow = matchMedia('(max-width: 960px)');
+const studySidebar = $('study-sidebar');
+const studyDialog = $('study-dialog');
+const studyNote = $('study-note');
+const studyBody = $('study-note-body');
+const studyClose = $('study-close');
 const tocChapters = new Map();
 const tocEditions = new Map();
 const localEditions = new Map();
@@ -23,6 +29,7 @@ let scrollTimer;
 let restoredScrollY = null;
 let desktopTocOpen;
 let currentTocChapter;
+let activeStudyButton;
 
 function readPreference(key) {
   try { return localStorage.getItem(`scriptures-flow:${key}`); } catch { return null; }
@@ -229,13 +236,17 @@ function displayText(text, className) {
   return paragraph;
 }
 
+function verseBounds(number) {
+  const start = Number.parseInt(number, 10);
+  return [start, Number.parseInt(number.split(/[-–]/)[1], 10) || start];
+}
+
 function isReadableReference(destination) {
   if (!parseRoute(route(destination))) return false;
   if (destination.edition !== 'bible') return true;
   const verses = bibleData[destination.book][destination.chapter];
   return [destination.verse, destination.end ?? destination.verse].every(target => verses.some(([number]) => {
-    const start = parseInt(number, 10);
-    const end = parseInt(number.split(/[-–]/)[1], 10) || start;
+    const [start, end] = verseBounds(number);
     return start <= target && target <= end;
   }));
 }
@@ -258,79 +269,140 @@ function bibleChapter(place) {
   return {verses};
 }
 
-function createStudyNotes(place) {
-  const panel = document.createElement('section');
-  panel.id = 'study-note';
-  panel.className = 'study-note';
-  panel.hidden = true;
-  panel.setAttribute('aria-labelledby', 'study-note-title');
-  let active;
-
-  function close() {
-    active?.setAttribute('aria-expanded', 'false');
-    active?.focus({preventScroll: true});
-    active = null;
-    panel.hidden = true;
+function syncStudyPanel() {
+  if (!activeStudyButton) return;
+  if (studyNarrow.matches) {
+    studySidebar.hidden = true;
+    if (studyNote.parentElement !== studyDialog) studyDialog.append(studyNote);
+    if (!studyDialog.open) studyDialog.showModal();
+  } else {
+    if (studyDialog.open) studyDialog.close();
+    if (studyNote.parentElement !== studySidebar) studySidebar.append(studyNote);
+    studySidebar.hidden = false;
   }
+}
 
-  function openNote(button, note, row) {
-    if (button === active) { close(); return; }
-    active?.setAttribute('aria-expanded', 'false');
-    active = button;
-    button.setAttribute('aria-expanded', 'true');
+function closeStudyNote(restoreFocus = true) {
+  const button = activeStudyButton;
+  if (!button) return;
+  const top = button.getBoundingClientRect().top;
+  activeStudyButton = null;
+  button.setAttribute('aria-expanded', 'false');
+  if (studyDialog.open) studyDialog.close();
+  studySidebar.hidden = true;
+  studyBody.replaceChildren();
+  if (restoreFocus) {
+    if (!studyNarrow.matches) window.scrollBy(0, button.getBoundingClientRect().top - top);
+    button.focus({preventScroll: true});
+  }
+}
 
-    const header = document.createElement('header');
-    const title = document.createElement('h2');
-    title.id = 'study-note-title';
-    title.textContent = note.title ?? `Сноска ${row.dataset.verse}${note.marker} · ${note.text}`;
-    const dismiss = document.createElement('button');
-    dismiss.type = 'button';
-    dismiss.className = 'button';
-    dismiss.textContent = 'Закрыть';
-    dismiss.addEventListener('click', close);
-    header.append(title, dismiss);
-    panel.replaceChildren(header);
-    for (const parts of note.paragraphs) {
-      const paragraph = document.createElement('p');
-      for (const part of parts) {
-        if (typeof part === 'string') paragraph.append(part);
-        else if (isReadableReference(part.place)) {
-          const target = link(part.text, route(part.place));
-          target.addEventListener('click', event => {
-            if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-            history.replaceState(history.state, '', route({...place, verse: +row.dataset.verse, end: undefined}));
-          });
-          paragraph.append(target);
-        } else paragraph.append(part.text);
+async function loadStudyPreview(container, place, edition) {
+  try {
+    const data = place.edition === 'bible' ? {verses: bibleData[place.book][place.chapter]} : await readEpubChapter(edition.archive, place);
+    const verses = data.verses.filter(([number]) => {
+      const [start, end] = verseBounds(number);
+      return end >= place.verse && start <= (place.end ?? place.verse);
+    });
+    const lines = verses.map(([number, text]) => {
+      const line = displayText(text, 'study-preview-verse');
+      const marker = document.createElement('b');
+      marker.textContent = `${number} `;
+      line.prepend(marker);
+      return line;
+    });
+    if (!lines.length && data.paragraphs?.length) lines.push(displayText(data.paragraphs[0], 'study-preview-verse'));
+    container.replaceChildren(...(lines.length ? lines : [displayText('Отрывок можно открыть в полной главе.', 'study-preview-status')]));
+  } catch {
+    container.replaceChildren(displayText('Не удалось загрузить отрывок.', 'study-preview-status'));
+  } finally {
+    container.setAttribute('aria-busy', 'false');
+  }
+}
+
+function createStudyPreview(place, origin) {
+  const card = document.createElement('section');
+  card.className = 'study-preview';
+  card.tabIndex = -1;
+  const title = document.createElement('h3');
+  title.textContent = `${titleFor(place)}:${place.verse}${place.end ? `–${place.end}` : ''}`;
+  const body = document.createElement('div');
+  const edition = localEditions.get(place.edition);
+  const available = place.edition === 'bible' || edition;
+  const fullChapter = available ? link('Открыть главу', route(place), 'button') : link('Открыть главу на сайте Церкви', sourceFor(place), 'button');
+  if (available) {
+    fullChapter.addEventListener('click', event => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      history.replaceState(history.state, '', route(origin));
+      if (fullChapter.hash === location.hash) {
+        event.preventDefault();
+        void render();
       }
-      panel.append(paragraph);
-    }
-    row.after(panel);
-    panel.hidden = false;
-    panel.scrollIntoView({block: 'nearest'});
+    });
+    body.setAttribute('aria-busy', 'true');
+    body.append(displayText('Открываю отрывок…', 'study-preview-status'));
+    void loadStudyPreview(body, place, edition);
+  } else {
+    body.append(displayText('Для предпросмотра добавь эту книгу на устройство.', 'study-preview-status'));
   }
+  card.append(title, body, fullChapter);
+  return card;
+}
 
-  function append(body, parts, row) {
+function openStudyNote(button, note, place, verse) {
+  if (button === activeStudyButton) { closeStudyNote(); return; }
+  const top = button.getBoundingClientRect().top;
+  activeStudyButton?.setAttribute('aria-expanded', 'false');
+  activeStudyButton = button;
+  button.setAttribute('aria-expanded', 'true');
+  $('study-note-title').textContent = note.title ?? `Сноска ${verse}${note.marker} · ${note.text}`;
+  const origin = {...place, verse, end: undefined};
+  const previews = new Map();
+  const paragraphs = note.paragraphs.map(parts => {
+    const paragraph = document.createElement('p');
     for (const part of parts) {
-      if (typeof part === 'string') { body.append(part); continue; }
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = part.title ? 'study-note-word study-note-verse' : 'study-note-word';
-      button.setAttribute('aria-controls', panel.id);
-      button.setAttribute('aria-expanded', 'false');
-      button.setAttribute('aria-label', part.title ?? `Сноска ${row.dataset.verse}${part.marker}: ${part.text}`);
-      if (part.marker) {
-        const marker = document.createElement('sup');
-        marker.textContent = part.marker;
-        button.append(marker);
-      }
-      button.append(part.text);
-      button.addEventListener('click', () => openNote(button, part, row));
-      body.append(button);
+      if (typeof part === 'string') { paragraph.append(part); continue; }
+      if (!isReadableReference(part.place)) { paragraph.append(part.text); continue; }
+      const key = route(part.place);
+      if (!previews.has(key)) previews.set(key, createStudyPreview(part.place, origin));
+      const card = previews.get(key);
+      const reference = document.createElement('button');
+      reference.type = 'button';
+      reference.className = 'study-reference';
+      reference.textContent = part.text;
+      reference.addEventListener('click', () => {
+        studyBody.scrollTop += card.getBoundingClientRect().top - studyBody.getBoundingClientRect().top - 5;
+        card.focus({preventScroll: true});
+      });
+      paragraph.append(reference);
     }
-  }
+    return paragraph;
+  });
+  studyBody.replaceChildren(...paragraphs, ...previews.values());
+  syncStudyPanel();
+  studyBody.scrollTop = 0;
+  if (!studyNarrow.matches) window.scrollBy(0, button.getBoundingClientRect().top - top);
+  studyClose.focus({preventScroll: true});
+}
 
-  return {panel, append};
+function appendStudyNotes(body, parts, place, verse) {
+  for (const part of parts) {
+    if (typeof part === 'string') { body.append(part); continue; }
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = part.title ? 'study-note-word study-note-verse' : 'study-note-word';
+    button.setAttribute('aria-controls', studyNote.id);
+    button.setAttribute('aria-expanded', 'false');
+    button.setAttribute('aria-label', part.title ?? `Сноска ${verse}${part.marker}: ${part.text}`);
+    button.append(part.text);
+    if (part.marker) {
+      const marker = document.createElement('sup');
+      marker.textContent = part.marker;
+      button.append(marker);
+    }
+    button.addEventListener('click', () => openStudyNote(button, part, place, verse));
+    body.append(button);
+  }
 }
 
 function showChapter(place, data, version) {
@@ -341,17 +413,15 @@ function showChapter(place, data, version) {
     preface.append(...data.intro.map(text => displayText(text, '')));
     fragment.append(preface);
   }
-  const notes = data.verses.some(([, , parts]) => parts) ? createStudyNotes(place) : null;
   let firstMarked;
   for (const [number, text, parts] of data.verses) {
-    const start = Number.parseInt(number, 10);
-    const end = Number.parseInt(number.split(/[-–]/)[1], 10) || start;
+    const [start, end] = verseBounds(number);
     const row = document.createElement('p');
     row.className = 'verse';
     row.id = `verse-${number}`;
     row.dataset.verse = String(start);
     const body = document.createElement('span');
-    if (parts) notes.append(body, parts, row);
+    if (parts) appendStudyNotes(body, parts, place, start);
     else body.textContent = text;
     const numberLink = link(number, route({...place, verse: start, end: undefined}), 'verse-number');
     numberLink.setAttribute('aria-label', `Стих ${number}`);
@@ -362,7 +432,6 @@ function showChapter(place, data, version) {
     }
     fragment.append(row);
   }
-  if (notes) fragment.append(notes.panel);
   for (const paragraph of data.paragraphs ?? []) fragment.append(displayText(paragraph, 'section-paragraph'));
   passage.replaceChildren(fragment);
   renderSource(place, data.rights);
@@ -413,6 +482,7 @@ function showUnavailable(place, message, allowFile = false) {
 
 async function render() {
   const version = ++rendering;
+  closeStudyNote(false);
   clearTimeout(scrollTimer);
   restoredScrollY = null;
   $('jump-error').hidden = true;
@@ -529,6 +599,15 @@ tocToggle.addEventListener('click', () => {
 $('toc-close').addEventListener('click', closeToc);
 tocDialog.addEventListener('close', syncToc);
 tocNarrow.addEventListener('change', syncToc);
+studyClose.addEventListener('click', () => closeStudyNote());
+studyDialog.addEventListener('cancel', event => {
+  event.preventDefault();
+  closeStudyNote();
+});
+studyNarrow.addEventListener('change', syncStudyPanel);
+addEventListener('keydown', event => {
+  if (event.key === 'Escape' && activeStudyButton && !studyDialog.open) closeStudyNote();
+});
 tocContent.addEventListener('click', event => {
   if (tocDialog.open && event.target.closest('a') && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) tocDialog.close();
 });

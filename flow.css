@@ -36,6 +36,11 @@ button, summary { cursor: pointer; }
 main { max-width: 1100px; margin: auto; padding: 24px 22px 40px; }
 .page-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
 .page-layout:has(> #toc-sidebar:not([hidden])) { grid-template-columns: minmax(225px, 265px) minmax(0, 1fr); }
+main:has(#study-sidebar:not([hidden])) { max-width: 1440px; }
+.page-layout:has(> #study-sidebar:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); }
+.page-layout:has(> #toc-sidebar:not([hidden])):has(> #study-sidebar:not([hidden])) {
+  grid-template-columns: minmax(175px, 220px) minmax(0, 1fr) minmax(280px, 340px);
+}
 .page-content { min-width: 0; }
 #toc-sidebar { position: sticky; top: 78px; }
 .toc-panel { display: flex; flex-direction: column; max-height: calc(100dvh - 94px); background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
@@ -55,8 +60,8 @@ main { max-width: 1100px; margin: auto; padding: 24px 22px 40px; }
 #toc-content a[aria-current=page] { color: var(--green); font-weight: 750; }
 #toc-dialog { position: fixed; inset: 0 auto 0 0; margin: 0; padding: 0; border: 0; width: min(360px, calc(100vw - 24px)); max-width: none; height: 100dvh; max-height: none; background: transparent; color: inherit; }
 #toc-dialog .toc-panel { height: 100%; max-height: none; border-radius: 0 15px 15px 0; }
-#toc-dialog::backdrop { background: #162c2160; }
-body:has(#toc-dialog[open]) { overflow: hidden; }
+#toc-dialog::backdrop, #study-dialog::backdrop { background: #162c2160; }
+body:has(#toc-dialog[open], #study-dialog[open]) { overflow: hidden; }
 .cover { padding: 24px 30px 26px; background: linear-gradient(110deg,#d9ebde,#eaf4e6); border: 1px solid var(--line); border-radius: 21px; }
 .cover h1 { font-size: clamp(2.15rem, 5vw, 3.8rem); font-weight: 730; line-height: 1.1; letter-spacing: -.058em; overflow-wrap: anywhere; }
 .cover h1:focus { outline: none; }
@@ -97,13 +102,22 @@ body:has(#toc-dialog[open]) { overflow: hidden; }
 .verse-number:hover { text-decoration: underline; }
 .study-note-word { border: 0; border-radius: 4px; padding: 0 .12em; background: transparent; color: var(--green); font: inherit; font-weight: 650; text-decoration: underline; text-underline-offset: .15em; }
 .study-note-word:hover, .study-note-word[aria-expanded=true] { background: var(--tint); }
-.study-note-word sup { margin-right: .14em; font-size: .63em; line-height: 0; }
+.study-note-word sup { margin-inline-start: .14em; font-size: .63em; line-height: 0; }
 .study-note-verse { margin-inline-start: 3px; padding: 2px 5px; font-size: .7em; line-height: 1.3; white-space: nowrap; }
-.study-note { margin: 3px 5px 10px 2.65rem; padding: 10px 13px; background: var(--tint); border: 1px solid var(--line); border-radius: 10px; scroll-margin: 120px 0 12px; }
-.study-note header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.study-note h2 { font-size: 1rem; }
-.study-note p { margin-top: 6px; line-height: 1.55; }
-.study-note a { font-weight: 650; }
+#study-sidebar { position: sticky; top: 78px; min-width: 0; }
+.study-note { display: flex; flex-direction: column; max-height: calc(100dvh - 94px); background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
+.study-note > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 13px; border-bottom: 1px solid var(--line); }
+.study-note h2 { font-size: 1rem; overflow-wrap: anywhere; }
+.study-note-body { overflow: auto; overscroll-behavior: contain; padding: 10px 13px; }
+.study-note-body > p { margin-bottom: 8px; font-size: .9rem; }
+.study-reference { border: 0; padding: 0; background: transparent; color: var(--green); font: inherit; font-weight: 650; text-decoration: underline; text-underline-offset: .16em; }
+.study-preview { margin: 8px 0; padding: 11px; background: var(--background); border: 1px solid var(--line); border-radius: 10px; }
+.study-preview h3 { margin: 0 0 6px; font-size: .97rem; }
+.study-preview-verse, .study-preview-status { margin: 0 0 5px; font-size: .9rem; line-height: 1.55; }
+.study-preview-status { color: var(--muted); }
+.study-preview .button { margin-top: 4px; }
+#study-dialog { position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0; border: 0; width: min(360px, calc(100vw - 24px)); max-width: none; height: 100dvh; max-height: none; background: transparent; color: inherit; }
+#study-dialog .study-note { height: 100%; max-height: none; border-radius: 15px 0 0 15px; }
 .chapter-preface { margin: 8px 8px 14px; color: var(--muted); }
 .chapter-preface p + p { margin-top: 8px; }
 .reading-message { margin: 7px 2px 10px; max-width: 54ch; }
@@ -123,6 +137,5 @@ body:has(#toc-dialog[open]) { overflow: hidden; }
   .edition-card { padding: 13px; }
   .reader-shell { padding: 10px; margin-top: 10px; }
   .verse { grid-template-columns: 1.7rem minmax(0,1fr); gap: 4px; padding-inline: 2px; }
-  .study-note { margin-left: 8px; }
 }
 
