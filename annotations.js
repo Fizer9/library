@@ -7,6 +7,8 @@
   const picker = $('annotation-picker');
   const notes = $('notes-dialog');
   const selectionActions = $('selection-actions');
+  const selectionError = $('selection-error');
+  const floatingMenu = matchMedia('(min-width: 801px) and (hover: hover) and (pointer: fine)');
   const settings = $('sync-dialog');
   const status = $('sync-status');
   const editorStatus = $('annotation-status');
@@ -26,7 +28,6 @@
   let saveTimer;
   let repaintPending = false;
   let selectedFragments;
-  let wholeVerse;
   let connection;
   let activeSync;
   let syncTimer;
@@ -115,13 +116,8 @@
         byVerse.set(part.verse, covered);
       }
     }
-    for (const button of passage.querySelectorAll('[data-annotation]')) {
-      const covered = byVerse.get(button.dataset.annotation) ?? [];
-      button.textContent = covered.length > 1 ? String(covered.length) : covered.length ? '✎' : '+';
-      button.dataset.entries = covered.map(({entry}) => entry.key).join(' ');
-      button.setAttribute('aria-label', `Заметки и выделения, стих ${button.dataset.number}${covered.length ? `, записей: ${covered.length}` : ''}`);
-      button.title = 'Заметки и выделения';
-      annotationText.paint(button.closest('.verse').querySelector('.verse-text'), covered);
+    for (const body of passage.querySelectorAll('.verse-text[data-annotation]')) {
+      annotationText.paint(body, byVerse.get(body.dataset.annotation) ?? []);
     }
   }
 
@@ -133,9 +129,9 @@
   }
 
   function makeEntry(place, fragments) {
-    const id = fragments ? crypto.randomUUID() : undefined;
+    const id = crypto.randomUUID();
     return {
-      place, fragments, id, key: id ?? place, fields: new Map(), alternatives: new Map(),
+      place, fragments, id, key: id, fields: new Map(), alternatives: new Map(),
       values: {note: '', title: '', style: 'none', tags: '', notebooks: ''},
     };
   }
@@ -160,7 +156,7 @@
     conflicts.open = !conflicts.hidden;
   }
 
-  function showEditor(entry, {mark = false, suggestMark = false} = {}) {
+  function showEditor(entry) {
     editing = entry;
     $('annotation-title').textContent = referenceLabel(entry);
     const quote = $('annotation-quote');
@@ -168,13 +164,10 @@
     quote.hidden = !quote.textContent;
     editorStatus.hidden = true;
     for (const [field, input] of Object.entries(inputs)) input.value = editing.values[field];
-    editing.suggestMark = suggestMark;
-    if (mark || suggestMark) inputs.style.value = defaultStyle;
     $('annotation-delete-note').hidden = !(entry.values.title || entry.values.note);
     showConflicts();
     editor.showModal();
-    (mark ? inputs.style : inputs.note).focus();
-    if (mark) saveAnnotation();
+    inputs.note.focus();
   }
 
   function storeRevision(entry, field, value) {
@@ -187,6 +180,13 @@
     entry.fields.set(field, [revision]);
   }
 
+  function storeField(entry, field, value) {
+    if (entry.id && !entry.fields.has('anchor')) storeRevision(entry, 'anchor', entry.fragments);
+    storeRevision(entry, field, value);
+    entry.values[field] = value;
+    entry.alternatives.delete(field);
+  }
+
   function groupNames(value) {
     return [...new Set(value.split(',').map(name => name.trim()).filter(Boolean))];
   }
@@ -196,25 +196,18 @@
     if (!editing) return true;
     const values = Object.fromEntries(Object.entries(inputs).map(([field, input]) => [field, input.value.trim()]));
     for (const field of ['tags', 'notebooks']) values[field] = groupNames(values[field]).join(',');
-    if (editing.suggestMark && !values.note && !values.title && values.style === defaultStyle) {
-      values.style = editing.values.style;
-    }
     let changed = false;
     let failed = false;
     try {
       for (const [field, value] of Object.entries(values)) {
         if (!resolve.includes(field) && value === editing.values[field]) continue;
-        if (editing.id && !editing.fields.has('anchor')) storeRevision(editing, 'anchor', editing.fragments);
-        storeRevision(editing, field, value);
-        editing.values[field] = value;
-        editing.alternatives.delete(field);
+        storeField(editing, field, value);
         changed = true;
       }
     } catch {
       failed = true;
     }
     if (changed) {
-      if (values.style === defaultStyle) editing.suggestMark = false;
       showConflicts();
       $('annotation-delete-note').hidden = !(editing.values.title || editing.values.note);
       repaint();
@@ -285,9 +278,7 @@
     showNotesMessage(items.length ? '' : entries.length ? 'Ничего не найдено.' : 'Заметок и выделений пока нет.');
   }
 
-  function showPicker(entries, verse) {
-    wholeVerse = verse;
-    $('annotation-whole-verse').hidden = !verse;
+  function showPicker(entries) {
     $('annotation-choices').replaceChildren(...entries.map(entry => {
       const item = document.createElement('li');
       item.append(entryButton(entry));
@@ -299,23 +290,62 @@
   function refreshSelection() {
     selectedFragments = annotationText.selection();
     selectionActions.hidden = !selectedFragments;
+    selectionError.hidden = true;
+    positionSelectionMenu();
     if (!selectedFragments && repaintPending) repaint();
   }
 
-  function useSelection(mark) {
-    const fragments = selectedFragments;
-    if (!fragments) return;
+  function positionSelectionMenu() {
+    if (!selectedFragments || !floatingMenu.matches) return;
+    const selection = getSelection();
+    if (!selection?.rangeCount || selection.isCollapsed) return;
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    const {offsetWidth: width, offsetHeight: height} = selectionActions;
+    const viewport = document.documentElement;
+    const gutter = 8;
+    const header = document.querySelector('.topbar').getBoundingClientRect().bottom + gutter;
+    const bottom = viewport.clientHeight - height - gutter;
+    if (rect.bottom <= header || rect.top >= viewport.clientHeight) {
+      selectionActions.style.setProperty('--selection-top', `${bottom}px`);
+      return;
+    }
+    const left = Math.max(gutter, Math.min((rect.left + rect.right - width) / 2, viewport.clientWidth - width - gutter));
+    const above = rect.top - height - gutter;
+    const top = above >= header ? above : Math.min(rect.bottom + gutter, bottom);
+    selectionActions.style.setProperty('--selection-left', `${left}px`);
+    selectionActions.style.setProperty('--selection-top', `${Math.max(header, top)}px`);
+  }
+
+  function entryForSelection(fragments) {
+    const signature = JSON.stringify(fragments);
+    const existing = entriesByDate(currentAnnotations()).find(entry => entry.fragments && JSON.stringify(entry.fragments) === signature);
+    return existing ?? makeEntry(fragments[0].verse, fragments);
+  }
+
+  function clearSelection() {
     getSelection().removeAllRanges();
     refreshSelection();
-    const signature = JSON.stringify(fragments);
-    let existing;
+  }
+
+  function useSelection(color) {
+    if (!selectedFragments) return;
+    let entry;
     try {
-      existing = entriesByDate(currentAnnotations()).find(entry => entry.fragments && JSON.stringify(entry.fragments) === signature);
-    } catch { /* The editor will report storage failures on save. */ }
-    showEditor(existing ?? makeEntry(fragments[0].verse, fragments), {
-      mark: mark && (!existing || existing.values.style === 'none'),
-      suggestMark: !mark && !existing,
-    });
+      entry = entryForSelection(selectedFragments);
+      if (color && entry.values.style !== color) storeField(entry, 'style', color);
+    } catch {
+      selectionError.textContent = color ? 'Не удалось сохранить выделение на устройстве.' : 'Не удалось открыть редактор заметок.';
+      selectionError.hidden = false;
+      positionSelectionMenu();
+      return;
+    }
+    clearSelection();
+    if (color) {
+      repaint();
+      scheduleSync();
+    } else {
+      showEditor(entry);
+    }
   }
 
   function renderSettings() {
@@ -539,20 +569,14 @@
     if (annotationText.selection() || event.target.closest('.study-note-word')) return;
     const target = event.target.closest('[data-entries]');
     if (!target) return;
-    const {annotation: verse, entries: keys} = target.dataset;
+    const {entries: keys} = target.dataset;
     let annotations;
     try { annotations = currentAnnotations(); } catch { annotations = new Map(); }
     const entries = keys.split(' ').map(key => annotations.get(key)).filter(Boolean);
-    if (!entries.length && verse) showEditor(makeEntry(verse));
-    else if (entries.length === 1 && (!verse || entries[0].place === verse && !entries[0].id)) showEditor(entries[0]);
-    else if (entries.length) showPicker(entries, verse);
+    if (entries.length === 1) showEditor(entries[0]);
+    else if (entries.length) showPicker(entries);
   });
   $('annotation-picker-close').addEventListener('click', () => picker.close());
-  $('annotation-whole-verse').addEventListener('click', () => {
-    const existing = currentAnnotations().get(wholeVerse);
-    picker.close();
-    showEditor(existing ?? makeEntry(wholeVerse));
-  });
   $('annotation-form').addEventListener('submit', event => {
     event.preventDefault();
     if (saveAnnotation()) editor.close();
@@ -561,10 +585,7 @@
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveAnnotation, 1000);
   });
-  $('annotation-style').addEventListener('change', () => {
-    editing.suggestMark = false;
-    saveAnnotation();
-  });
+  $('annotation-style').addEventListener('change', () => saveAnnotation());
   $('annotation-resolve').addEventListener('click', () => saveAnnotation([...editing.alternatives.keys()]));
   $('annotation-delete-note').addEventListener('click', () => {
     if (!confirm('Удалить заголовок и текст этой заметки?')) return;
@@ -580,8 +601,15 @@
   });
   selectionActions.addEventListener('pointerdown', event => event.preventDefault());
   document.addEventListener('selectionchange', refreshSelection);
-  $('selection-mark').addEventListener('click', () => useSelection(true));
-  $('selection-note').addEventListener('click', () => useSelection(false));
+  $('selection-note').addEventListener('click', () => useSelection());
+  for (const button of selectionActions.querySelectorAll('[data-color]')) {
+    button.addEventListener('click', () => useSelection(button.dataset.color));
+  }
+  addEventListener('scroll', positionSelectionMenu, {passive: true});
+  addEventListener('resize', positionSelectionMenu);
+  addEventListener('keydown', event => {
+    if (event.key === 'Escape' && selectedFragments && !document.querySelector('dialog[open]')) clearSelection();
+  });
   for (const button of document.querySelectorAll('[data-open-notes]')) {
     button.addEventListener('click', () => {
       notes.showModal();

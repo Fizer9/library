@@ -94,6 +94,16 @@
               </div>
             </header>
             <article id="passage" aria-labelledby="reader-title" aria-busy="false"></article>
+            <div id="selection-actions" role="group" aria-label="Действия с выбранным текстом" hidden>
+              <button id="selection-note" class="button" type="button">Добавить заметку</button>
+              <div class="selection-colors" role="group" aria-label="Выделить цветом">
+                <button class="selection-swatch fill-yellow" type="button" data-color="fill-yellow" aria-label="Выделить жёлтым" title="Жёлтый"></button>
+                <button class="selection-swatch fill-green" type="button" data-color="fill-green" aria-label="Выделить зелёным" title="Зелёный"></button>
+                <button class="selection-swatch fill-blue" type="button" data-color="fill-blue" aria-label="Выделить голубым" title="Голубой"></button>
+                <button class="selection-swatch fill-rose" type="button" data-color="fill-rose" aria-label="Выделить розовым" title="Розовый"></button>
+              </div>
+              <p id="selection-error" class="error" role="alert" hidden>Не удалось сохранить выделение на устройстве.</p>
+            </div>
             <nav class="chapter-navigation" aria-label="Навигация по главам">
               <a id="previous" class="button" hidden>Предыдущая</a>
               <a id="next" class="button" hidden>Следующая</a>
@@ -114,16 +124,11 @@
     </div>
     <dialog id="toc-dialog" aria-labelledby="toc-title"></dialog>
     <dialog id="study-dialog" aria-labelledby="study-note-title"></dialog>
-    <div id="selection-actions" role="group" aria-label="Действия с выбранным текстом" hidden>
-      <button id="selection-mark" class="button" type="button">Выделить</button>
-      <button id="selection-note" class="button" type="button">Заметка</button>
-    </div>
     <dialog id="annotation-picker" class="personal-dialog" aria-labelledby="annotation-picker-title">
       <h2 id="annotation-picker-title">Записи к тексту</h2>
       <ul id="annotation-choices" class="annotation-list"></ul>
       <div class="personal-actions">
         <button id="annotation-picker-close" class="button" type="button">Закрыть</button>
-        <button id="annotation-whole-verse" class="button" type="button">Весь стих</button>
       </div>
     </dialog>
     <dialog id="annotation-dialog" class="personal-dialog" aria-labelledby="annotation-title">

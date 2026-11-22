@@ -40,8 +40,11 @@ const annotationText = (() => {
       if (!quote) continue;
       length += quote.length;
       if (length > maxQuoteLength || fragments.length === maxVerses) return null;
-      const verse = body.closest('.verse').querySelector('[data-annotation]').dataset.annotation;
-      fragments.push({verse, start: start + raw.length - raw.trimStart().length, quote});
+      fragments.push({
+        verse: body.dataset.annotation,
+        start: start + raw.length - raw.trimStart().length,
+        quote,
+      });
     }
     return fragments.length ? fragments : null;
   }

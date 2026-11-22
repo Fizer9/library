@@ -510,17 +510,12 @@ function showChapter(place, data, version) {
     row.dataset.verse = String(start);
     const body = document.createElement('span');
     body.className = 'verse-text';
+    body.dataset.annotation = route({...place, verse: start, end: end > start ? end : undefined});
     if (parts) appendStudyNotes(body, parts, place, start);
     else body.textContent = text;
     const numberLink = link(number, route({...place, verse: start, end: undefined}), 'verse-number');
     numberLink.setAttribute('aria-label', `Стих ${number}`);
     row.append(numberLink, body);
-    const annotation = document.createElement('button');
-    annotation.type = 'button';
-    annotation.className = 'verse-annotation';
-    annotation.dataset.annotation = route({...place, verse: start, end: end > start ? end : undefined});
-    annotation.dataset.number = number;
-    row.append(annotation);
     if (end >= place.verse && start <= (place.end ?? place.verse) && (place.verse !== 1 || place.end)) {
       row.setAttribute('aria-current', 'true');
       firstMarked ??= row;

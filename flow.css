@@ -156,25 +156,32 @@ body:has(#toc-dialog[open], #study-dialog[open]) { overflow: hidden; }
 .reader-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; padding-bottom: 15px; border-bottom: 1px solid var(--line); }
 #font-toggle { min-width: 44px; }
 #passage { padding: 13px 0 16px; }
-.verse { display: grid; grid-template-columns: 2rem minmax(0,1fr) 2rem; align-items: baseline; gap: 8px; padding: 6px 8px 6px 4px; font: var(--text-size)/1.6 var(--serif); border-radius: 6px; scroll-margin: 14px; overflow-wrap: anywhere; }
+.verse { display: grid; grid-template-columns: 2rem minmax(0,1fr); align-items: baseline; gap: 8px; padding: 6px 8px 6px 4px; font: var(--text-size)/1.6 var(--serif); border-radius: 6px; scroll-margin: 14px; overflow-wrap: anywhere; }
 .verse[aria-current=true] { background: var(--tint); box-shadow: inset 2px 0 var(--accent); }
-.verse-annotation { min-height: 32px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: 1rem/1 system-ui, sans-serif; }
-.verse-annotation:hover, .verse-annotation:focus-visible { background: var(--tint); color: var(--accent); }
 .library-actions, .reader-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .library-actions { margin-top: .55rem; }
 .reader-actions { justify-content: flex-end; }
 .personal-mark { background: transparent; color: inherit; cursor: pointer; }
-.personal-mark.fill-yellow { background: #f9e7a8; }
-.personal-mark.fill-green { background: #dfebc5; }
-.personal-mark.fill-blue { background: #d8eaf6; }
-.personal-mark.fill-rose { background: #f6dce5; }
+.fill-yellow { --mark-color: #f9e7a8; }
+.fill-green { --mark-color: #dfebc5; }
+.fill-blue { --mark-color: #d8eaf6; }
+.fill-rose { --mark-color: #f6dce5; }
+.personal-mark:is(.fill-yellow,.fill-green,.fill-blue,.fill-rose) { background: var(--mark-color); }
 .personal-mark:is(.line-yellow,.line-green,.line-blue,.line-rose,.note-anchor) { text-decoration: underline 2px; text-underline-offset: .2em; }
 .personal-mark.line-yellow { text-decoration-color: #ab7306; }
 .personal-mark.line-green { text-decoration-color: #4c731f; }
 .personal-mark.line-blue { text-decoration-color: #2e6e9a; }
 .personal-mark.line-rose { text-decoration-color: #a44865; }
 .personal-mark.note-anchor { text-decoration: underline dotted var(--accent); }
-#selection-actions { position: fixed; z-index: 3; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 8px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); box-shadow: 0 3px 14px #31241d30; white-space: nowrap; }
+#selection-actions { position: fixed; z-index: 3; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; width: max-content; max-width: calc(100% - 16px); gap: 4px 8px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); box-shadow: 0 3px 14px #31241d30; }
+.selection-colors { display: flex; gap: 2px; }
+.selection-swatch { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: transparent; }
+.selection-swatch::before { content: ''; width: 24px; height: 24px; border: 1px solid #31241d55; border-radius: 50%; background: var(--mark-color); }
+.selection-swatch:hover { background: var(--tint); }
+#selection-error { flex-basis: 100%; margin: 0; font-size: .8rem; }
+@media (min-width: 801px) and (hover: hover) and (pointer: fine) {
+  #selection-actions { left: var(--selection-left, 8px); top: var(--selection-top, auto); bottom: auto; transform: none; }
+}
 .personal-dialog { width: min(460px, calc(100% - 24px)); max-height: calc(100dvh - 24px); padding: clamp(16px, 4vw, 24px); border: 1px solid var(--line); border-radius: 15px; color: var(--ink); background: var(--paper); overflow-wrap: anywhere; }
 .personal-dialog::backdrop { background: #31241d65; }
 body:has(.personal-dialog[open]) { overflow: hidden; }
@@ -246,6 +253,6 @@ body:has(.personal-dialog[open]) { overflow: hidden; }
   .edition-grid { gap: 9px; }
   .edition-cover { min-height: 148px; padding: 28px 9px 11px 13px; }
   .edition-cover::before { inset: 8px 8px auto 12px; height: 19px; }
-  .verse { grid-template-columns: 1.55rem minmax(0,1fr) 2rem; gap: 5px; padding-inline: 2px; }
+  .verse { grid-template-columns: 1.55rem minmax(0,1fr); gap: 5px; padding-inline: 2px; }
 }
 
