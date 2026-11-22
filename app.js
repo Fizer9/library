@@ -87,19 +87,29 @@ function renderLibrary() {
   resume.hidden = !last;
   if (last) {
     resume.href = route(last);
-    resume.textContent = `Продолжить чтение · ${titleFor(last)}:${last.verse}`;
+    const verse = last.end ? `${last.verse}–${last.end}` : last.verse;
+    $('continue-title').textContent = `${titleFor(last)}:${verse}`;
   }
   $('edition-grid').replaceChildren(...Object.entries(editions).map(([id, edition]) => {
     const card = document.createElement('article');
     card.className = 'edition-card';
-    const title = document.createElement('h2');
+    card.dataset.edition = id;
+    const available = isAvailable(id);
+    const cover = link('', `#contents/${id}`, 'edition-cover');
+    const title = document.createElement('h3');
     title.textContent = edition.name;
-    card.append(title);
-    if (id === 'bible') card.append(displayText(`${edition.subtitle} · 66 книг`, ''));
-    const actions = document.createElement('div');
-    actions.className = 'card-actions';
-    actions.append(link(isAvailable(id) ? 'Читать' : 'Выбрать главу', `#contents/${id}`, 'button'));
-    card.append(actions);
+    cover.append(title);
+    if (edition.subtitle) cover.append(displayText(`${edition.subtitle} · ${edition.books.length} книг`, 'edition-meta'));
+    else if (!available) cover.append(displayText('Требуется EPUB', 'edition-meta'));
+    const action = document.createElement('span');
+    action.className = 'edition-action';
+    action.textContent = available ? 'Читать' : 'Оглавление';
+    const arrow = document.createElement('span');
+    arrow.setAttribute('aria-hidden', 'true');
+    arrow.textContent = '→';
+    action.append(arrow);
+    cover.append(action);
+    card.append(cover);
     return card;
   }));
 }

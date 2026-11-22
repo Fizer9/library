@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; manifest-src 'self'; worker-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta name="theme-color" content="#edf4ef">
+  <meta name="theme-color" content="#f6eee4">
   <title>Писания</title>
   <link rel="stylesheet" href="flow.css">
   <link rel="manifest" href="manifest.webmanifest">
@@ -45,36 +45,45 @@
         <p id="book-file-status" class="book-file-status" role="status" hidden></p>
         <input id="book-file" type="file" accept=".epub,application/epub+zip" hidden>
         <section id="library-view" aria-labelledby="library-title" hidden>
-          <div class="cover">
+          <header class="page-heading">
             <h1 id="library-title" tabindex="-1">Библиотека</h1>
-            <a class="continue" id="continue-link" hidden></a>
-          </div>
+          </header>
+          <a class="continue" id="continue-link" hidden>
+            <span class="continue-copy">
+              <span class="continue-label">Продолжить чтение</span>
+              <strong id="continue-title"></strong>
+            </span>
+            <span class="continue-arrow" aria-hidden="true">→</span>
+          </a>
+          <section class="library-editions" aria-labelledby="editions-title">
+            <h2 id="editions-title">Издания</h2>
+            <div class="edition-grid" id="edition-grid"></div>
+          </section>
           <section id="book-file-panel" class="book-file-panel" aria-label="Книги с устройства" hidden>
-            <button id="open-book-file" class="button" type="button">Открыть файл с устройства</button>
-            <p>Скачай русское издание и открой его в «Потоке». Книга сохранится в этом браузере.</p>
+            <button id="open-book-file" class="button" type="button">Добавить EPUB</button>
+            <p>Книги с устройства сохраняются в этом браузере.</p>
             <ul class="book-downloads" aria-label="Скачать русские издания с сайта Церкви">
               <li><a href="https://media.ldscdn.org/epub/lds-scriptures/book-of-mormon/06897_2013-00-0000-book-of-mormon-34406-rus.epub" target="_blank" rel="noopener noreferrer">Скачать Книгу Мормона</a></li>
               <li><a href="https://media.ldscdn.org/epub/lds-scriptures/doctrine-and-covenants-pearl-of-great-price/06897_2013-00-0000-doctrine-and-covenants-33569-rus.epub" target="_blank" rel="noopener noreferrer">Скачать Учение и Заветы и Драгоценную Жемчужину</a></li>
             </ul>
           </section>
-          <div class="edition-grid" id="edition-grid"></div>
         </section>
         <section id="contents-view" aria-labelledby="contents-title" hidden>
-          <div class="cover">
+          <header class="page-heading">
             <p class="collection">Оглавление</p>
             <h1 id="contents-title" tabindex="-1"></h1>
-          </div>
+          </header>
           <nav id="edition-contents" aria-labelledby="contents-title"></nav>
         </section>
-        <section id="reader-view" hidden>
-          <div class="cover reader-cover">
-            <p id="collection-label" class="collection"></p>
-            <h1 id="reader-title" tabindex="-1"></h1>
-          </div>
+        <section id="reader-view" aria-labelledby="reader-title" hidden>
           <div class="reader-shell">
-            <div class="reader-toolbar">
+            <header class="page-heading reader-heading">
+              <div>
+                <p id="collection-label" class="collection"></p>
+                <h1 id="reader-title" tabindex="-1"></h1>
+              </div>
               <button id="font-toggle" type="button" aria-label="Крупный текст" aria-pressed="false">Аа</button>
-            </div>
+            </header>
             <article id="passage" aria-labelledby="reader-title" aria-busy="false"></article>
             <nav class="chapter-navigation" aria-label="Навигация по главам">
               <a id="previous" class="button" hidden>Предыдущая</a>
