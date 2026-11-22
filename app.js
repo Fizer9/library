@@ -229,6 +229,89 @@ function displayText(text, className) {
   return paragraph;
 }
 
+function isReadableReference(destination) {
+  if (!parseRoute(route(destination))) return false;
+  if (destination.edition !== 'bible') return true;
+  const verses = bibleData[destination.book][destination.chapter];
+  return [destination.verse, destination.end ?? destination.verse].every(target => verses.some(([number]) => {
+    const start = parseInt(number, 10);
+    const end = parseInt(number.split(/[-–]/)[1], 10) || start;
+    return start <= target && target <= end;
+  }));
+}
+
+function createStudyNotes(place) {
+  const panel = document.createElement('section');
+  panel.id = 'study-note';
+  panel.className = 'study-note';
+  panel.hidden = true;
+  panel.setAttribute('aria-labelledby', 'study-note-title');
+  let active;
+
+  function close() {
+    active?.setAttribute('aria-expanded', 'false');
+    active?.focus({preventScroll: true});
+    active = null;
+    panel.hidden = true;
+  }
+
+  function openNote(button, note, row) {
+    if (button === active) { close(); return; }
+    active?.setAttribute('aria-expanded', 'false');
+    active = button;
+    button.setAttribute('aria-expanded', 'true');
+
+    const header = document.createElement('header');
+    const title = document.createElement('h2');
+    title.id = 'study-note-title';
+    title.textContent = `Сноска ${row.dataset.verse}${note.marker} · ${note.text}`;
+    const dismiss = document.createElement('button');
+    dismiss.type = 'button';
+    dismiss.className = 'button';
+    dismiss.textContent = 'Закрыть';
+    dismiss.addEventListener('click', close);
+    header.append(title, dismiss);
+    panel.replaceChildren(header);
+    for (const parts of note.paragraphs) {
+      const paragraph = document.createElement('p');
+      for (const part of parts) {
+        if (typeof part === 'string') paragraph.append(part);
+        else if (isReadableReference(part.place)) {
+          const target = link(part.text, route(part.place));
+          target.addEventListener('click', event => {
+            if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+            history.replaceState(history.state, '', route({...place, verse: +row.dataset.verse, end: undefined}));
+          });
+          paragraph.append(target);
+        } else paragraph.append(part.text);
+      }
+      panel.append(paragraph);
+    }
+    row.after(panel);
+    panel.hidden = false;
+    panel.scrollIntoView({block: 'nearest'});
+  }
+
+  function append(body, parts, row) {
+    for (const part of parts) {
+      if (typeof part === 'string') { body.append(part); continue; }
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'study-note-word';
+      button.setAttribute('aria-controls', panel.id);
+      button.setAttribute('aria-expanded', 'false');
+      button.setAttribute('aria-label', `Сноска ${row.dataset.verse}${part.marker}: ${part.text}`);
+      const marker = document.createElement('sup');
+      marker.textContent = part.marker;
+      button.append(marker, part.text);
+      button.addEventListener('click', () => openNote(button, part, row));
+      body.append(button);
+    }
+  }
+
+  return {panel, append};
+}
+
 function showChapter(place, data, version) {
   const fragment = document.createDocumentFragment();
   if (data.intro?.length) {
@@ -237,8 +320,9 @@ function showChapter(place, data, version) {
     preface.append(...data.intro.map(text => displayText(text, '')));
     fragment.append(preface);
   }
+  const notes = data.verses.some(([, , parts]) => parts) ? createStudyNotes(place) : null;
   let firstMarked;
-  for (const [number, text] of data.verses) {
+  for (const [number, text, parts] of data.verses) {
     const start = Number.parseInt(number, 10);
     const end = Number.parseInt(number.split(/[-–]/)[1], 10) || start;
     const row = document.createElement('p');
@@ -246,7 +330,8 @@ function showChapter(place, data, version) {
     row.id = `verse-${number}`;
     row.dataset.verse = String(start);
     const body = document.createElement('span');
-    body.textContent = text;
+    if (parts) notes.append(body, parts, row);
+    else body.textContent = text;
     const numberLink = link(number, route({...place, verse: start, end: undefined}), 'verse-number');
     numberLink.setAttribute('aria-label', `Стих ${number}`);
     row.append(numberLink, body);
@@ -256,6 +341,7 @@ function showChapter(place, data, version) {
     }
     fragment.append(row);
   }
+  if (notes) fragment.append(notes.panel);
   for (const paragraph of data.paragraphs ?? []) fragment.append(displayText(paragraph, 'section-paragraph'));
   passage.replaceChildren(fragment);
   renderSource(place, data.rights);
@@ -393,6 +479,12 @@ async function start() {
     for (const key of keys) localEditions.set(key, {archive, rights});
   }
   await render();
+}
+
+if (hosted && window.isSecureContext && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./service-worker.js').catch(error => {
+    console.warn('Не удалось настроить автономный режим.', error);
+  });
 }
 
 buildToc();

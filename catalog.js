@@ -1,5 +1,5 @@
 const bibleBooks = [
-  ['GEN','Бытие','Быт'], ['EXO','Исход','Исх'], ['LEV','Левит','Лев'], ['NUM','Числа','Чис'], ['DEU','Второзаконие','Втор'],
+  ['GEN','Бытие','Быт'], ['EXO','Исход','Исх'], ['LEV','Левит','Лев'], ['NUM','Числа','Чис','Числ'], ['DEU','Второзаконие','Втор'],
   ['JOS','Иисус Навин','Нав','Иисуса Навина'], ['JDG','Судьи','Суд'], ['RUT','Руфь','Руф'],
   ['1SA','1 Царств','1 Цар'], ['2SA','2 Царств','2 Цар'], ['1KI','3 Царств','3 Цар'], ['2KI','4 Царств','4 Цар'],
   ['1CH','1 Паралипоменон','1 Пар'], ['2CH','2 Паралипоменон','2 Пар'], ['EZR','Ездра','Езд'], ['NEH','Неемия','Неем'],
@@ -37,7 +37,7 @@ const editions = {
     name: 'Драгоценная Жемчужина', path: 'pgp',
     books: [
       ['moses','Моисей',8,'Моис'], ['abr','Авраам',5,'Авр'], ['js-m','Джозеф Смит — от Матфея',1,'ДжС—М'],
-      ['js-h','Джозеф Смит — История',1,'ДжС—И'], ['a-of-f','Символы веры',1,'Симв веры'], ['fac','Факсимиле Авраама',3],
+      ['js-h','Джозеф Смит — История',1,'ДжС—И','Ист'], ['a-of-f','Символы веры',1,'Симв веры','С. В.'], ['fac','Факсимиле Авраама',3],
     ],
   },
 };
@@ -63,6 +63,48 @@ function parseReference(input, preferredEdition) {
     if (book) return {edition, book: book.id, chapter: Number(chapter), verse: Number(verse ?? 1), ...(end && {end: Number(end)})};
   }
   return null;
+}
+
+const studyBookNames = [...new Set(Object.values(editions).flatMap(edition => edition.books.flatMap(book => [book.name, ...book.aliases])))]
+  .sort((a, b) => b.length - a.length)
+  .map(name => name.match(/[\p{L}\d]+/gu).join(String.raw`[\s.\-–—]*`))
+  .join('|');
+const studyVerse = String.raw`(\d{1,3})(?:\s*[-–—]\s*(\d{1,3})(?![\d:]))?(?![\d:])`;
+
+function splitStudyReferences(text, previous = null) {
+  const named = new RegExp(String.raw`(?<![\p{L}\d])(${studyBookNames})\.?\s+(\d{1,3})\s*:\s*${studyVerse}`, 'giu');
+  const continuation = new RegExp(String.raw`([;,]\s*)(?:(\d{1,3})\s*:\s*)?${studyVerse}`, 'y');
+  const parts = [];
+  let cursor = 0;
+
+  function addReference(start, end, place) {
+    if (start > cursor) parts.push(text.slice(cursor, start));
+    parts.push({text: text.slice(start, end), place});
+    cursor = end;
+  }
+
+  function addContinuations(place) {
+    continuation.lastIndex = cursor;
+    for (let match; (match = continuation.exec(text));) {
+      const [, separator, chapter, verse, end] = match;
+      if (!chapter && separator.startsWith(';')) break;
+      place = {edition: place.edition, book: place.book, chapter: chapter ? +chapter : place.chapter, verse: +verse, ...(end && {end: +end})};
+      addReference(match.index + separator.length, continuation.lastIndex, place);
+    }
+  }
+
+  if (previous) addContinuations(previous);
+  named.lastIndex = cursor;
+  for (let match; (match = named.exec(text));) {
+    const [, name, chapter, verse, end] = match;
+    const place = parseReference(`${name} ${chapter}:${verse}${end ? `–${end}` : ''}`, 'bible');
+    if (!place) continue;
+    addReference(match.index, named.lastIndex, place);
+    addContinuations(place);
+    named.lastIndex = cursor;
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return parts;
 }
 
 function sourceFor(place) {

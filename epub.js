@@ -81,17 +81,77 @@ function epubChapterPath(place) {
   return `OEBPS/${prefix}${part}.xhtml`;
 }
 
+const epubDecorations = '.verse-number, .marker, .page-break, img, script, style';
+
 function epubText(node) {
   const copy = node.cloneNode(true);
-  for (const marker of copy.querySelectorAll('.verse-number, .marker, .page-break, img, script, style')) marker.remove();
+  for (const marker of copy.querySelectorAll(epubDecorations)) marker.remove();
   return copy.textContent.replace(/\s+/gu, ' ').trim();
 }
 
+function epubInlineParts(node, readLink) {
+  const parts = [];
+  function walk(parent) {
+    for (const child of parent.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        if (typeof parts.at(-1) === 'string') parts[parts.length - 1] += child.textContent;
+        else parts.push(child.textContent);
+      } else if (child.nodeType === Node.ELEMENT_NODE && !child.matches(epubDecorations)) {
+        const link = child.localName === 'a' ? readLink(child) : null;
+        if (link) parts.push(link);
+        else walk(child);
+      }
+    }
+  }
+  walk(node);
+  return parts;
+}
+
+function epubScriptureLink(anchor, chapterPath) {
+  const text = epubText(anchor);
+  const href = anchor.getAttribute('href');
+  if (!href || !text || !anchor.classList.contains('scripture-ref')) return null;
+  let address;
+  try { address = new URL(href, `https://book.invalid/${chapterPath}`); } catch { return null; }
+  if (address.origin !== 'https://book.invalid') return null;
+  const match = address.pathname.match(/^\/OEBPS\/(?:(dc-testament|pgp)\/)?([\w-]+)\/(\d+)\.xhtml$/);
+  if (!match) return null;
+  const [, collection, book, chapter] = match;
+  const edition = collection === 'dc-testament' ? 'dc' : collection ?? 'bofm';
+  const verse = Number(address.hash.match(/^#p(\d+)$/)?.[1] ?? 1);
+  const end = Number(text.match(/\d\s*[-–—]\s*(\d+)$/u)?.[1]);
+  return {text, place: {edition, book, chapter: +chapter, verse, ...(end >= verse && {end})}};
+}
+
+function epubStudyNote(anchor, chapterPath) {
+  const id = anchor.getAttribute('href')?.match(/^#(note[\w-]+)$/)?.[1];
+  const note = id && anchor.ownerDocument.getElementById(id);
+  if (!note) return null;
+  const paragraphs = [...note.children].filter(child => child.localName === 'p' && !child.classList.contains('label-group')).map(paragraph => {
+    let previous = null;
+    return epubInlineParts(paragraph, child => epubScriptureLink(child, chapterPath)).flatMap(part => {
+      if (typeof part === 'string') return splitStudyReferences(part, previous);
+      previous = part.place;
+      return part;
+    });
+  }).filter(parts => parts.length);
+  if (!paragraphs.length) return null;
+  return {text: epubText(anchor), marker: anchor.querySelector('.marker')?.textContent.trim() ?? '', paragraphs};
+}
+
 async function readEpubChapter(archive, place) {
-  const doc = epubDocument(await archive.text(epubChapterPath(place)));
+  const chapterPath = epubChapterPath(place);
+  const doc = epubDocument(await archive.text(chapterPath));
   const intro = [...doc.querySelectorAll('.study-intro, .study-summary')].map(epubText).filter(Boolean);
   const numbered = [...doc.querySelectorAll('.body-block .verse')];
-  const verses = numbered.map(verse => [verse.querySelector('.verse-number')?.textContent.trim(), epubText(verse)]);
+  const verses = numbered.map(verse => {
+    const number = verse.querySelector('.verse-number')?.textContent.trim();
+    if (!verse.querySelector('a.study-note-ref')) return [number, epubText(verse)];
+    const parts = epubInlineParts(verse, anchor => {
+      return anchor.classList.contains('study-note-ref') ? epubStudyNote(anchor, chapterPath) : null;
+    });
+    return [number, epubText(verse), parts];
+  });
   if (verses.length && verses.every(([number, text]) => number && text)) return {intro, verses};
   if (place.book === 'od' || place.book === 'fac') {
     const paragraphs = [...doc.querySelectorAll('.body-block p')].map(epubText).filter(Boolean);

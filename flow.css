@@ -95,6 +95,14 @@ body:has(#toc-dialog[open]) { overflow: hidden; }
 .verse[aria-current=true] { background: var(--tint); }
 .verse-number { margin-top: 6px; width: 100%; text-align: center; font-size: .82rem; font-weight: 700; text-decoration: none; font-variant-numeric: tabular-nums; }
 .verse-number:hover { text-decoration: underline; }
+.study-note-word { border: 0; border-radius: 4px; padding: 0 .12em; background: transparent; color: var(--green); font: inherit; font-weight: 650; text-decoration: underline; text-underline-offset: .15em; }
+.study-note-word:hover, .study-note-word[aria-expanded=true] { background: var(--tint); }
+.study-note-word sup { margin-right: .14em; font-size: .63em; line-height: 0; }
+.study-note { margin: 3px 5px 10px 2.65rem; padding: 10px 13px; background: var(--tint); border: 1px solid var(--line); border-radius: 10px; scroll-margin: 120px 0 12px; }
+.study-note header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.study-note h2 { font-size: 1rem; }
+.study-note p { margin-top: 6px; line-height: 1.55; }
+.study-note a { font-weight: 650; }
 .chapter-preface { margin: 8px 8px 14px; color: var(--muted); }
 .chapter-preface p + p { margin-top: 8px; }
 .reading-message { margin: 7px 2px 10px; max-width: 54ch; }
@@ -114,5 +122,6 @@ body:has(#toc-dialog[open]) { overflow: hidden; }
   .edition-card { padding: 13px; }
   .reader-shell { padding: 10px; margin-top: 10px; }
   .verse { grid-template-columns: 1.7rem minmax(0,1fr); gap: 4px; padding-inline: 2px; }
+  .study-note { margin-left: 8px; }
 }
 
