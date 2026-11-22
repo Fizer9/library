@@ -70,9 +70,9 @@ body:has(#toc-dialog[open], #study-dialog[open]) { overflow: hidden; }
 #edition-contents { margin-top: 16px; padding: 10px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
 #edition-contents li + li { margin-top: 3px; }
 #edition-contents details > ul { padding: 4px 0 8px 12px; }
-#edition-contents .chapter-list[open] > ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 8rem), 1fr)); gap: 6px; }
-#edition-contents .chapter-list > ul > li { margin: 0; }
-#edition-contents .chapter-list a { height: 100%; border: 1px solid var(--line); }
+:is(#toc-content, #edition-contents) .chapter-list[open] > ul { display: grid; grid-template-columns: repeat(auto-fill, 2.75rem); gap: 6px; }
+:is(#toc-content, #edition-contents) .chapter-list > ul > li { margin: 0; }
+:is(#toc-content, #edition-contents) .chapter-list > ul > li > a { display: grid; place-items: center; aspect-ratio: 1; padding: 0; border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .continue { display: inline-block; margin-top: 13px; font-size: .95rem; font-weight: 650; }
 .edition-grid { display: grid; gap: 12px; grid-template-columns: repeat(2,minmax(0,1fr)); margin-top: 16px; }
 .book-file-panel { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-top: 16px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
