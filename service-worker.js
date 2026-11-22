@@ -1,6 +1,6 @@
 const scope = new URL(self.registration.scope);
 const cachePrefix = `potok:${scope.pathname}:`;
-const cacheName = `${cachePrefix}v6`;
+const cacheName = `${cachePrefix}v7`;
 const home = new URL('index.html', scope).href;
 const assets = new Set([
   home,
@@ -9,9 +9,11 @@ const assets = new Set([
 ]);
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(cacheName).then(cache =>
-    cache.addAll([...assets].map(url => new Request(url, {cache: 'reload'}))),
-  ));
+  event.waitUntil((async () => {
+    const cache = await caches.open(cacheName);
+    await cache.addAll([...assets].map(url => new Request(url, {cache: 'reload'})));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', event => {
@@ -36,7 +38,7 @@ self.addEventListener('fetch', event => {
 async function loadAsset(request, key) {
   const cache = await caches.open(cacheName);
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, {cache: 'no-cache'});
     if (response.ok) {
       await cache.put(key, response.clone()).catch(() => {});
       return response;
