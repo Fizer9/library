@@ -241,33 +241,35 @@ function renderNavigation(place) {
 function enableChapterSwipe() {
   let swipe;
 
-  addEventListener('pointerdown', event => {
-    if (event.pointerType !== 'touch') return;
+  addEventListener('touchstart', event => {
     swipe = null;
-    if (!event.isPrimary || !currentPlace || !reader.contains(event.target) ||
-        event.target.closest('a, button') || !window.getSelection()?.isCollapsed) return;
-    swipe = {id: event.pointerId, x: event.clientX, y: event.clientY, version: rendering};
-  });
-  reader.addEventListener('pointermove', event => {
-    if (swipe?.id !== event.pointerId) return;
-    const dx = Math.abs(event.clientX - swipe.x);
-    const dy = Math.abs(event.clientY - swipe.y);
+    if (event.touches.length !== 1 || !currentPlace || !reader.contains(event.target) ||
+        !window.getSelection()?.isCollapsed) return;
+    const {identifier, clientX, clientY} = event.touches[0];
+    swipe = {identifier, x: clientX, y: clientY, version: rendering};
+  }, {capture: true, passive: true});
+  reader.addEventListener('touchmove', event => {
+    const touch = event.touches[0];
+    if (event.touches.length !== 1 || swipe?.identifier !== touch.identifier) return;
+    const dx = Math.abs(touch.clientX - swipe.x);
+    const dy = Math.abs(touch.clientY - swipe.y);
     if (dy > 12 && dy > dx) swipe = null;
-  });
-  reader.addEventListener('pointerup', event => {
-    if (swipe?.id !== event.pointerId) return;
+    else if (dx > 12 && dx > dy * 1.5 && event.cancelable) event.preventDefault();
+  }, {passive: false});
+  reader.addEventListener('touchend', event => {
+    const touch = event.changedTouches[0];
+    if (swipe?.identifier !== touch.identifier) return;
     const {x, y, version} = swipe;
     swipe = null;
-    const dx = event.clientX - x;
-    const dy = event.clientY - y;
-    if (version !== rendering || Math.abs(dx) < Math.max(64, Math.abs(dy) * 1.5) ||
+    const dx = touch.clientX - x;
+    const dy = touch.clientY - y;
+    if (version !== rendering || Math.abs(dx) < Math.max(48, Math.abs(dy) * 1.5) ||
         !window.getSelection()?.isCollapsed) return;
+    if (event.cancelable) event.preventDefault();
     const target = adjacent(currentPlace, dx < 0 ? 1 : -1);
     if (target) open(target);
-  });
-  reader.addEventListener('pointercancel', event => {
-    if (swipe?.id === event.pointerId) swipe = null;
-  });
+  }, {passive: false});
+  reader.addEventListener('touchcancel', () => { swipe = null; });
 }
 
 function displayText(text, className) {
