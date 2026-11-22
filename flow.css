@@ -72,9 +72,9 @@ body:has(#toc-dialog[open], #study-dialog[open]) { overflow: hidden; }
 #edition-contents { margin-top: 16px; padding: 10px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
 #edition-contents li + li { margin-top: 3px; }
 #edition-contents details > ul { padding: 4px 0 8px 12px; }
-:is(#toc-content, #edition-contents) .chapter-list[open] > ul { display: grid; grid-template-columns: repeat(auto-fill, 2.75rem); gap: 6px; }
+:is(#toc-content, #edition-contents) .chapter-list[open] > ul { display: grid; grid-template-columns: repeat(auto-fill, 3.5rem); gap: 8px; }
 :is(#toc-content, #edition-contents) .chapter-list > ul > li { margin: 0; }
-:is(#toc-content, #edition-contents) .chapter-list > ul > li > a { display: grid; place-items: center; aspect-ratio: 1; padding: 0; border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+:is(#toc-content, #edition-contents) .chapter-list > ul > li > a { display: grid; place-items: center; aspect-ratio: 1; padding: 0; border: 1px solid var(--line); font-size: 1rem; font-variant-numeric: tabular-nums; }
 #library-view { container-type: inline-size; }
 .continue {
   display: grid;
