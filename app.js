@@ -238,6 +238,38 @@ function renderNavigation(place) {
   }
 }
 
+function enableChapterSwipe() {
+  let swipe;
+
+  addEventListener('pointerdown', event => {
+    if (event.pointerType !== 'touch') return;
+    swipe = null;
+    if (!event.isPrimary || !currentPlace || !reader.contains(event.target) ||
+        event.target.closest('a, button') || !window.getSelection()?.isCollapsed) return;
+    swipe = {id: event.pointerId, x: event.clientX, y: event.clientY, version: rendering};
+  });
+  reader.addEventListener('pointermove', event => {
+    if (swipe?.id !== event.pointerId) return;
+    const dx = Math.abs(event.clientX - swipe.x);
+    const dy = Math.abs(event.clientY - swipe.y);
+    if (dy > 12 && dy > dx) swipe = null;
+  });
+  reader.addEventListener('pointerup', event => {
+    if (swipe?.id !== event.pointerId) return;
+    const {x, y, version} = swipe;
+    swipe = null;
+    const dx = event.clientX - x;
+    const dy = event.clientY - y;
+    if (version !== rendering || Math.abs(dx) < Math.max(64, Math.abs(dy) * 1.5) ||
+        !window.getSelection()?.isCollapsed) return;
+    const target = adjacent(currentPlace, dx < 0 ? 1 : -1);
+    if (target) open(target);
+  });
+  reader.addEventListener('pointercancel', event => {
+    if (swipe?.id === event.pointerId) swipe = null;
+  });
+}
+
 function displayText(text, className) {
   const paragraph = document.createElement('p');
   paragraph.className = className;
@@ -654,6 +686,7 @@ tocDialog.addEventListener('close', syncToc);
 tocNarrow.addEventListener('change', syncToc);
 studyClose.addEventListener('click', () => closeStudyNote());
 enableStudySwipe();
+enableChapterSwipe();
 studyDialog.addEventListener('cancel', event => {
   event.preventDefault();
   closeStudyNote();

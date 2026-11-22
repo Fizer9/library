@@ -152,6 +152,7 @@ body:has(#toc-dialog[open], #study-dialog[open]) { overflow: hidden; }
 #open-book-file:disabled { opacity: .65; cursor: wait; }
 .button, #font-toggle { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border: 1px solid var(--line); color: var(--accent); background: var(--paper); border-radius: 8px; padding: 6px 11px; text-decoration: none; font-size: .88rem; font-weight: 650; }
 .button:hover, #font-toggle:hover, #font-toggle[aria-pressed=true] { background: var(--tint); }
+#reader-view { touch-action: pan-y pinch-zoom; }
 .reader-shell { max-width: 47rem; margin-inline: auto; }
 .reader-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; padding-bottom: 15px; border-bottom: 1px solid var(--line); }
 #font-toggle { min-width: 44px; }
