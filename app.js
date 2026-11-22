@@ -240,6 +240,24 @@ function isReadableReference(destination) {
   }));
 }
 
+function bibleChapter(place) {
+  const references = typeof bibleReferences === 'undefined' ? null : bibleReferences[place.book]?.[place.chapter];
+  const verses = bibleData[place.book][place.chapter].map(([number, text]) => {
+    const entries = references?.[parseInt(number, 10)];
+    if (!entries) return [number, text];
+    const parts = entries.split(' ').flatMap((reference, index) => {
+      const [book, chapter, range] = reference.split('.');
+      const [verse, end] = range.split('-').map(Number);
+      const target = {edition: 'bible', book, chapter: +chapter, verse, ...(end && {end})};
+      const label = `${titleFor(target)}:${verse}${end ? `–${end}` : ''}`;
+      return [...(index ? [' · '] : []), {text: label, place: target}];
+    });
+    const note = {text: 'Ссылки', title: `Параллельные места · ${titleFor(place)}:${number}`, paragraphs: [parts]};
+    return [number, text, [text, ' ', note]];
+  });
+  return {verses};
+}
+
 function createStudyNotes(place) {
   const panel = document.createElement('section');
   panel.id = 'study-note';
@@ -264,7 +282,7 @@ function createStudyNotes(place) {
     const header = document.createElement('header');
     const title = document.createElement('h2');
     title.id = 'study-note-title';
-    title.textContent = `Сноска ${row.dataset.verse}${note.marker} · ${note.text}`;
+    title.textContent = note.title ?? `Сноска ${row.dataset.verse}${note.marker} · ${note.text}`;
     const dismiss = document.createElement('button');
     dismiss.type = 'button';
     dismiss.className = 'button';
@@ -297,13 +315,16 @@ function createStudyNotes(place) {
       if (typeof part === 'string') { body.append(part); continue; }
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'study-note-word';
+      button.className = part.title ? 'study-note-word study-note-verse' : 'study-note-word';
       button.setAttribute('aria-controls', panel.id);
       button.setAttribute('aria-expanded', 'false');
-      button.setAttribute('aria-label', `Сноска ${row.dataset.verse}${part.marker}: ${part.text}`);
-      const marker = document.createElement('sup');
-      marker.textContent = part.marker;
-      button.append(marker, part.text);
+      button.setAttribute('aria-label', part.title ?? `Сноска ${row.dataset.verse}${part.marker}: ${part.text}`);
+      if (part.marker) {
+        const marker = document.createElement('sup');
+        marker.textContent = part.marker;
+        button.append(marker);
+      }
+      button.append(part.text);
       button.addEventListener('click', () => openNote(button, part, row));
       body.append(button);
     }
@@ -364,6 +385,14 @@ function renderSource(place, rights) {
   source.replaceChildren();
   if (rights) source.append(displayText(rights, ''));
   source.append(link(place.edition === 'bible' ? 'Синодальный перевод · eBible.org' : 'Открыть на сайте Церкви', sourceFor(place)));
+  if (place.edition === 'bible') {
+    const credit = document.createElement('p');
+    credit.append('Параллельные места: ', link('OpenBible.info', 'https://www.openbible.info/labs/cross-references/'), ' · ',
+      link('CC BY 4.0', 'https://creativecommons.org/licenses/by/4.0/'),
+      ' · Выборка до 10 ссылок на стих с пересчётом нумерации по ',
+      link('CrossWire JSword', 'https://github.com/crosswire/jsword/blob/master/src/main/resources/org/crosswire/jsword/versification/SynodalProt.properties'), '.');
+    source.append(credit);
+  }
   source.hidden = false;
 }
 
@@ -417,7 +446,7 @@ async function render() {
   passage.setAttribute('aria-busy', 'false');
 
   if (place.edition === 'bible') {
-    showChapter(place, {verses: bibleData[place.book][place.chapter]}, version);
+    showChapter(place, bibleChapter(place), version);
     return;
   }
 

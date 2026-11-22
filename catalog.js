@@ -36,7 +36,7 @@ const editions = {
   pgp: {
     name: 'Драгоценная Жемчужина', path: 'pgp',
     books: [
-      ['moses','Моисей',8,'Моис'], ['abr','Авраам',5,'Авр'], ['js-m','Джозеф Смит — от Матфея',1,'ДжС—М'],
+      ['moses','Моисей',8,'Моис'], ['abr','Авраам',5,'Авр'], ['js-m','Джозеф Смит — от Матфея',1,'ДжС—М','ДжС–Мф'],
       ['js-h','Джозеф Смит — История',1,'ДжС—И','Ист'], ['a-of-f','Символы веры',1,'Симв веры','С. В.'], ['fac','Факсимиле Авраама',3],
     ],
   },
@@ -72,7 +72,7 @@ const studyBookNames = [...new Set(Object.values(editions).flatMap(edition => ed
 const studyVerse = String.raw`(\d{1,3})(?:\s*[-–—]\s*(\d{1,3})(?![\d:]))?(?![\d:])`;
 
 function splitStudyReferences(text, previous = null) {
-  const named = new RegExp(String.raw`(?<![\p{L}\d])(${studyBookNames})\.?\s+(\d{1,3})\s*:\s*${studyVerse}`, 'giu');
+  const named = new RegExp(String.raw`(?<![\p{L}\d])(?:(ПДжС)\s*[-–—]\s*)?(${studyBookNames})\.?\s+(\d{1,3})\s*:\s*${studyVerse}`, 'giu');
   const continuation = new RegExp(String.raw`([;,]\s*)(?:(\d{1,3})\s*:\s*)?${studyVerse}`, 'y');
   const parts = [];
   let cursor = 0;
@@ -96,7 +96,8 @@ function splitStudyReferences(text, previous = null) {
   if (previous) addContinuations(previous);
   named.lastIndex = cursor;
   for (let match; (match = named.exec(text));) {
-    const [, name, chapter, verse, end] = match;
+    const [, otherTranslation, name, chapter, verse, end] = match;
+    if (otherTranslation) continue;
     const place = parseReference(`${name} ${chapter}:${verse}${end ? `–${end}` : ''}`, 'bible');
     if (!place) continue;
     addReference(match.index, named.lastIndex, place);
@@ -109,7 +110,10 @@ function splitStudyReferences(text, previous = null) {
 
 function sourceFor(place) {
   const edition = editions[place.edition];
-  if (!edition.path) return `https://ebible.org/russyn/${place.book}${String(place.chapter).padStart(2, '0')}.htm#V${place.verse}`;
+  if (!edition.path) {
+    const chapter = String(place.chapter).padStart(place.book === 'PSA' ? 3 : 2, '0');
+    return `https://ebible.org/russyn/${place.book}${chapter}.htm#V${place.verse}`;
+  }
   const part = place.book === 'fac' ? `abr/fac-${place.chapter}` : `${place.book}/${place.chapter}`;
   const url = new URL(`${church}${edition.path}/${part}`);
   url.searchParams.set('lang', 'rus');
