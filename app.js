@@ -80,7 +80,8 @@ function link(text, href, className = '') {
 }
 
 function renderLibrary() {
-  $('book-file-panel').hidden = !hosted;
+  const isAvailable = id => id === 'bible' || localEditions.has(id);
+  $('book-file-panel').hidden = !hosted || Object.keys(editions).every(isAvailable);
   const last = parseRoute(readPreference('last') ?? '');
   const resume = $('continue-link');
   resume.hidden = !last;
@@ -97,8 +98,7 @@ function renderLibrary() {
     if (id === 'bible') card.append(displayText(`${edition.subtitle} · 66 книг`, ''));
     const actions = document.createElement('div');
     actions.className = 'card-actions';
-    const available = id === 'bible' || localEditions.has(id);
-    actions.append(link(available ? 'Читать' : 'Выбрать главу', `#contents/${id}`, 'button'));
+    actions.append(link(isAvailable(id) ? 'Читать' : 'Выбрать главу', `#contents/${id}`, 'button'));
     card.append(actions);
     return card;
   }));
@@ -125,11 +125,10 @@ function tocBranch(title, items) {
 function tocBook(editionId, book) {
   const count = chapterCount(editionId, book);
   const heading = {dc: 'Разделы', od: 'Официальные заявления', fac: 'Факсимиле'}[book.id] ?? book.name;
-  const chapterName = {dc: 'Раздел', fac: 'Факсимиле'}[book.id] ?? book.name;
   const chapters = Array.from({length: count}, (_, index) => {
     const chapter = index + 1;
     const destination = route({edition: editionId, book: book.id, chapter, verse: 1});
-    const chapterLink = link(count === 1 ? book.name : `${chapterName} ${chapter}`, destination);
+    const chapterLink = link(count === 1 ? book.name : String(chapter), destination);
     tocChapters.set(destination, chapterLink);
     return chapterLink;
   });
