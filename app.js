@@ -72,7 +72,7 @@ function link(text, href, className = '') {
   element.href = href;
   element.textContent = text;
   element.className = className;
-  if (href.startsWith('https://')) {
+  if (href.startsWith('https://') && !href.startsWith(church)) {
     element.target = '_blank';
     element.rel = 'noopener noreferrer';
   }
@@ -400,6 +400,7 @@ function openStudyNote(button, note, place, verse) {
     const paragraph = document.createElement('p');
     for (const part of parts) {
       if (typeof part === 'string') { paragraph.append(part); continue; }
+      if (part.href) { paragraph.append(link(part.text, part.href, 'study-reference')); continue; }
       if (!isReadableReference(part.place)) { paragraph.append(part.text); continue; }
       const key = route(part.place);
       if (!previews.has(key)) previews.set(key, createStudyPreview(part.place, origin));

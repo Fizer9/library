@@ -123,6 +123,21 @@ function epubScriptureLink(anchor, chapterPath) {
   return {text, place: {edition, book, chapter: +chapter, verse, ...(end >= verse && {end})}};
 }
 
+function splitGuideReferences(text) {
+  return text.split(/(?<![\p{L}\p{N}])(РСП\.?\s+)/gu).flatMap((part, index) => {
+    if (index === 0 || index % 2 === 1) return part;
+    return part.split(/(;|\.(?=\s+См\.))/u).flatMap(topic => {
+      const [, before, title, after] = topic.match(/^(\s*)(.*?)([.\s]*)$/su);
+      const normalized = title.normalize('NFC').toLowerCase().replaceAll('ё', 'е').replace(/[‐‑–—]/gu, '-').replace(/\s+/gu, ' ');
+      const path = guideArticlePaths.get(normalized);
+      if (!path) return topic;
+      const url = new URL(`${church}gs/${path}`);
+      url.searchParams.set('lang', 'rus');
+      return [before, {text: title, href: url.href}, after];
+    });
+  });
+}
+
 function epubStudyNote(anchor, chapterPath) {
   const id = anchor.getAttribute('href')?.match(/^#(note[\w-]+)$/)?.[1];
   const note = id && anchor.ownerDocument.getElementById(id);
@@ -130,7 +145,9 @@ function epubStudyNote(anchor, chapterPath) {
   const paragraphs = [...note.children].filter(child => child.localName === 'p' && !child.classList.contains('label-group')).map(paragraph => {
     let previous = null;
     return epubInlineParts(paragraph, child => epubScriptureLink(child, chapterPath)).flatMap(part => {
-      if (typeof part === 'string') return splitStudyReferences(part, previous);
+      if (typeof part === 'string') {
+        return splitGuideReferences(part).flatMap(item => typeof item === 'string' ? splitStudyReferences(item, previous) : item);
+      }
       previous = part.place;
       return part;
     });
