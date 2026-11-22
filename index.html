@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Писания · Поток</title>
+  <link rel="stylesheet" href="flow.css">
+  <script src="catalog.js" defer></script>
+  <script src="bible-data.js" defer></script>
+  <script src="epub.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#library"><span class="brand-mark" aria-hidden="true"></span>Писания</a>
+      <form id="jump-form" class="jump-form" role="search">
+        <label class="sr-only" for="jump-input">Книга, глава и стих</label>
+        <input type="search" id="jump-input" placeholder="Например, Ин. 3:16" required>
+        <button type="submit">Перейти</button>
+      </form>
+      <button class="button" id="toc-toggle" type="button" aria-controls="toc-panel" aria-expanded="false">Оглавление</button>
+    </div>
+  </header>
+  <main>
+    <div class="page-layout">
+      <aside id="toc-sidebar" hidden>
+        <div id="toc-panel" class="toc-panel">
+          <div class="toc-header">
+            <h2 id="toc-title">Оглавление</h2>
+            <button id="toc-close" type="button" aria-label="Закрыть оглавление">×</button>
+          </div>
+          <nav id="toc-content" aria-labelledby="toc-title"></nav>
+        </div>
+      </aside>
+      <div class="page-content">
+        <p id="jump-error" class="error" role="status" hidden></p>
+        <p id="book-file-status" class="book-file-status" role="status" hidden></p>
+        <input id="book-file" type="file" accept=".epub,application/epub+zip" hidden>
+        <section id="library-view" aria-labelledby="library-title" hidden>
+          <div class="cover">
+            <h1 id="library-title" tabindex="-1">Библиотека</h1>
+            <a class="continue" id="continue-link" hidden></a>
+          </div>
+          <section id="book-file-panel" class="book-file-panel" aria-label="Книги с устройства" hidden>
+            <button id="open-book-file" class="button" type="button">Открыть файл с устройства</button>
+            <p>Выбери скачанное русское издание в формате EPUB. Оно сохранится в этом браузере.</p>
+          </section>
+          <div class="edition-grid" id="edition-grid"></div>
+        </section>
+        <section id="contents-view" aria-labelledby="contents-title" hidden>
+          <div class="cover">
+            <p class="collection">Оглавление</p>
+            <h1 id="contents-title" tabindex="-1"></h1>
+          </div>
+          <nav id="edition-contents" aria-labelledby="contents-title"></nav>
+        </section>
+        <section id="reader-view" hidden>
+          <div class="cover reader-cover">
+            <p id="collection-label" class="collection"></p>
+            <h1 id="reader-title" tabindex="-1"></h1>
+          </div>
+          <div class="reader-shell">
+            <div class="reader-toolbar">
+              <button id="font-toggle" type="button" aria-label="Крупный текст" aria-pressed="false">Аа</button>
+            </div>
+            <article id="passage" aria-labelledby="reader-title" aria-busy="false"></article>
+            <nav class="chapter-navigation" aria-label="Навигация по главам">
+              <a id="previous" class="button" hidden>Предыдущая</a>
+              <a id="next" class="button" hidden>Следующая</a>
+            </nav>
+            <footer id="source-info" class="source-info" hidden></footer>
+          </div>
+        </section>
+      </div>
+    </div>
+    <dialog id="toc-dialog" aria-labelledby="toc-title"></dialog>
+  </main>
+</body>
+</html>
