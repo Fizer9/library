@@ -159,24 +159,50 @@ body:has(#toc-dialog[open], #study-dialog[open]) { overflow: hidden; }
 #passage { padding: 13px 0 16px; }
 .verse { display: grid; grid-template-columns: 2rem minmax(0,1fr) 2rem; align-items: baseline; gap: 8px; padding: 6px 8px 6px 4px; font: var(--text-size)/1.6 var(--serif); border-radius: 6px; scroll-margin: 14px; overflow-wrap: anywhere; }
 .verse[aria-current=true] { background: var(--tint); box-shadow: inset 2px 0 var(--accent); }
-.verse.personal-highlight { background: #f9e7a8; }
 .verse-annotation { min-height: 32px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: 1rem/1 system-ui, sans-serif; }
 .verse-annotation:hover, .verse-annotation:focus-visible { background: var(--tint); color: var(--accent); }
-#sync-settings { margin-top: .55rem; }
+.library-actions, .reader-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.library-actions { margin-top: .55rem; }
+.reader-actions { justify-content: flex-end; }
+.personal-mark { background: transparent; color: inherit; cursor: pointer; }
+.personal-mark.fill-yellow { background: #f9e7a8; }
+.personal-mark.fill-green { background: #dfebc5; }
+.personal-mark.fill-blue { background: #d8eaf6; }
+.personal-mark.fill-rose { background: #f6dce5; }
+.personal-mark:is(.line-yellow,.line-green,.line-blue,.line-rose,.note-anchor) { text-decoration: underline 2px; text-underline-offset: .2em; }
+.personal-mark.line-yellow { text-decoration-color: #ab7306; }
+.personal-mark.line-green { text-decoration-color: #4c731f; }
+.personal-mark.line-blue { text-decoration-color: #2e6e9a; }
+.personal-mark.line-rose { text-decoration-color: #a44865; }
+.personal-mark.note-anchor { text-decoration: underline dotted var(--accent); }
+#selection-actions { position: fixed; z-index: 3; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 8px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); box-shadow: 0 3px 14px #31241d30; white-space: nowrap; }
 .personal-dialog { width: min(460px, calc(100% - 24px)); max-height: calc(100dvh - 24px); padding: clamp(16px, 4vw, 24px); border: 1px solid var(--line); border-radius: 15px; color: var(--ink); background: var(--paper); overflow-wrap: anywhere; }
 .personal-dialog::backdrop { background: #31241d65; }
 body:has(.personal-dialog[open]) { overflow: hidden; }
 .personal-dialog h2 { font-size: 1.3rem; }
 .personal-dialog form { display: grid; gap: 8px; margin-top: 8px; }
 .personal-dialog label { font-weight: 600; }
-.personal-dialog input:not([type=checkbox]), .personal-dialog textarea { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: var(--paper); color: inherit; font: inherit; }
+.personal-dialog input, .personal-dialog textarea, .personal-dialog select { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: var(--paper); color: inherit; font: inherit; }
 .personal-dialog textarea { resize: vertical; }
 .personal-dialog textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .personal-dialog p, .personal-dialog details { font-size: .9rem; }
 .personal-dialog details li { white-space: pre-wrap; }
-.personal-checkbox { display: flex; align-items: center; gap: 6px; min-height: 36px; }
 .personal-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 #sync-dialog > p { margin-top: 8px; }
+#annotation-dialog { inset: 12px 12px 12px auto; margin: auto 0; }
+#annotation-quote { margin: 0; max-height: 7em; overflow: auto; padding: 6px 10px; border-inline-start: 2px solid var(--line); color: var(--muted); font: 1rem/1.5 var(--serif); }
+#notes-dialog { width: min(630px, calc(100% - 24px)); }
+.notes-filters { display: grid; gap: 6px; margin-block: 12px; }
+.notes-groups { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.annotation-list { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.annotation-list > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.annotation-preview { display: grid; flex: 1 1 14rem; gap: 2px; padding: 6px 0; text-align: left; min-width: 0; min-height: 44px; border: 0; background: transparent; overflow-wrap: anywhere; }
+.annotation-preview:hover strong { color: var(--accent); text-decoration: underline; }
+.annotation-preview > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; color: var(--muted); font-size: .9rem; }
+.annotation-jump { font-size: .9rem; }
+@media (max-width: 600px) {
+  #annotation-dialog { inset: auto 12px 12px; margin: 0 auto; }
+}
 .verse-number { width: 100%; text-align: center; font: 650 .8rem/1.3 'Segoe UI', system-ui, sans-serif; text-decoration: none; font-variant-numeric: tabular-nums; }
 .verse-number:hover { text-decoration: underline; }
 .study-note-word { border: 0; border-radius: 4px; padding: 0 .12em; background: transparent; color: var(--accent); font: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .15em; }

@@ -16,6 +16,7 @@
   <script src="guide-references.js" defer></script>
   <script src="epub.js" defer></script>
   <script src="app.js" defer></script>
+  <script src="annotation-text.js" defer></script>
   <script src="annotations.js" defer></script>
 </head>
 <body>
@@ -48,7 +49,10 @@
         <section id="library-view" aria-labelledby="library-title" hidden>
           <header class="page-heading">
             <h1 id="library-title" tabindex="-1">Библиотека</h1>
-            <button id="sync-settings" class="button" type="button">Синхронизация GitHub</button>
+            <div class="library-actions">
+              <button class="button" type="button" data-open-notes>Заметки</button>
+              <button id="sync-settings" class="button" type="button">Синхронизация GitHub</button>
+            </div>
           </header>
           <a class="continue" id="continue-link" hidden>
             <span class="continue-copy">
@@ -84,7 +88,10 @@
                 <p id="collection-label" class="collection"></p>
                 <h1 id="reader-title" tabindex="-1"></h1>
               </div>
-              <button id="font-toggle" type="button" aria-label="Крупный текст" aria-pressed="false">Аа</button>
+              <div class="reader-actions">
+                <button class="button" type="button" data-open-notes>Заметки</button>
+                <button id="font-toggle" type="button" aria-label="Крупный текст" aria-pressed="false">Аа</button>
+              </div>
             </header>
             <article id="passage" aria-labelledby="reader-title" aria-busy="false"></article>
             <nav class="chapter-navigation" aria-label="Навигация по главам">
@@ -107,23 +114,73 @@
     </div>
     <dialog id="toc-dialog" aria-labelledby="toc-title"></dialog>
     <dialog id="study-dialog" aria-labelledby="study-note-title"></dialog>
+    <div id="selection-actions" role="group" aria-label="Действия с выбранным текстом" hidden>
+      <button id="selection-mark" class="button" type="button">Выделить</button>
+      <button id="selection-note" class="button" type="button">Заметка</button>
+    </div>
+    <dialog id="annotation-picker" class="personal-dialog" aria-labelledby="annotation-picker-title">
+      <h2 id="annotation-picker-title">Записи к тексту</h2>
+      <ul id="annotation-choices" class="annotation-list"></ul>
+      <div class="personal-actions">
+        <button id="annotation-picker-close" class="button" type="button">Закрыть</button>
+        <button id="annotation-whole-verse" class="button" type="button">Весь стих</button>
+      </div>
+    </dialog>
     <dialog id="annotation-dialog" class="personal-dialog" aria-labelledby="annotation-title">
       <form id="annotation-form" method="dialog">
         <h2 id="annotation-title"></h2>
+        <blockquote id="annotation-quote" hidden></blockquote>
+        <label for="annotation-style">Оформление текста</label>
+        <select id="annotation-style">
+          <option value="none">Без выделения</option>
+          <optgroup label="Цвет фона">
+            <option value="fill-yellow">Жёлтый</option>
+            <option value="fill-green">Зелёный</option>
+            <option value="fill-blue">Голубой</option>
+            <option value="fill-rose">Розовый</option>
+          </optgroup>
+          <optgroup label="Подчёркивание">
+            <option value="line-yellow">Жёлтое</option>
+            <option value="line-green">Зелёное</option>
+            <option value="line-blue">Голубое</option>
+            <option value="line-rose">Розовое</option>
+          </optgroup>
+        </select>
+        <label for="annotation-heading">Заголовок</label>
+        <input id="annotation-heading" maxlength="180">
         <label for="annotation-note">Личная заметка</label>
         <textarea id="annotation-note" rows="5" maxlength="10000"></textarea>
         <details id="annotation-conflicts" hidden>
-          <summary>Другие версии заметки</summary>
+          <summary>Версии с других устройств</summary>
           <ul id="annotation-versions"></ul>
-          <label class="personal-checkbox"><input id="annotation-resolve" type="checkbox"> Оставить только заметку из поля выше</label>
+          <button id="annotation-resolve" class="button" type="button">Оставить текущие значения</button>
         </details>
-        <label class="personal-checkbox"><input id="annotation-highlight" type="checkbox"> Выделить стих</label>
-        <p id="annotation-error" class="error" role="status" hidden></p>
+        <label for="annotation-tags">Теги через запятую</label>
+        <input id="annotation-tags" maxlength="400">
+        <label for="annotation-notebooks">Блокноты через запятую</label>
+        <input id="annotation-notebooks" maxlength="400">
+        <p id="annotation-status" role="status" hidden></p>
         <div class="personal-actions">
-          <button id="annotation-cancel" class="button" type="button">Отмена</button>
-          <button class="button primary" type="submit">Сохранить</button>
+          <button id="annotation-delete-note" class="button" type="button" hidden>Удалить заметку</button>
+          <button class="button primary" type="submit">Готово</button>
         </div>
       </form>
+    </dialog>
+    <dialog id="notes-dialog" class="personal-dialog" aria-labelledby="notes-title">
+      <h2 id="notes-title">Заметки и выделения</h2>
+      <div class="notes-filters">
+        <label for="notes-search">Поиск</label>
+        <input id="notes-search" type="search" placeholder="Стих, фраза или заметка">
+        <div class="notes-groups">
+          <label>Тег <select id="notes-tag"></select></label>
+          <label>Блокнот <select id="notes-notebook"></select></label>
+        </div>
+      </div>
+      <p id="notes-empty" role="status" hidden></p>
+      <ul id="notes-list" class="annotation-list"></ul>
+      <div class="personal-actions">
+        <button id="notes-close" class="button" type="button">Закрыть</button>
+      </div>
     </dialog>
     <dialog id="sync-dialog" class="personal-dialog" aria-labelledby="sync-title">
       <h2 id="sync-title">Синхронизация GitHub</h2>

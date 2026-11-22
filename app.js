@@ -251,6 +251,7 @@ function enableChapterSwipe() {
   reader.addEventListener('touchmove', event => {
     const touch = event.touches[0];
     if (event.touches.length !== 1 || swipe?.identifier !== touch.identifier) return;
+    if (!window.getSelection()?.isCollapsed) { swipe = null; return; }
     const dx = Math.abs(touch.clientX - swipe.x);
     const dy = Math.abs(touch.clientY - swipe.y);
     if (dy > 12 && dy > dx) swipe = null;
@@ -508,6 +509,7 @@ function showChapter(place, data, version) {
     row.id = `verse-${number}`;
     row.dataset.verse = String(start);
     const body = document.createElement('span');
+    body.className = 'verse-text';
     if (parts) appendStudyNotes(body, parts, place, start);
     else body.textContent = text;
     const numberLink = link(number, route({...place, verse: start, end: undefined}), 'verse-number');

@@ -2,14 +2,31 @@
   const revisionPrefix = 'scriptures-flow:annotation:';
   const connectionKey = 'scriptures-flow:github-sync';
   const repositoryPattern = /^[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+$/;
-  const revisionId = /^[0-9a-f-]{36}$/;
+  const revisionId = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
   const editor = $('annotation-dialog');
-  const noteInput = $('annotation-note');
-  const highlightInput = $('annotation-highlight');
+  const picker = $('annotation-picker');
+  const notes = $('notes-dialog');
+  const selectionActions = $('selection-actions');
   const settings = $('sync-dialog');
   const status = $('sync-status');
+  const editorStatus = $('annotation-status');
+  const inputs = {
+    style: $('annotation-style'),
+    title: $('annotation-heading'),
+    note: $('annotation-note'),
+    tags: $('annotation-tags'),
+    notebooks: $('annotation-notebooks'),
+  };
+  const fieldNames = {
+    style: 'Оформление', title: 'Заголовок', note: 'Заметка', tags: 'Теги', notebooks: 'Блокноты',
+  };
+  const defaultStyle = 'fill-yellow';
   // Immutable revisions let devices merge edits and deletions without relying on their clocks.
   let editing;
+  let saveTimer;
+  let repaintPending = false;
+  let selectedFragments;
+  let wholeVerse;
   let connection;
   let activeSync;
   let syncTimer;
@@ -43,95 +60,262 @@
     const annotations = new Map();
     for (const revision of revisions.values()) {
       if (superseded.has(revision.id)) continue;
-      const fields = annotations.get(revision.place) ?? {note: [], highlight: []};
-      fields[revision.field].push(revision);
-      annotations.set(revision.place, fields);
+      const key = revision.entry ?? revision.place;
+      const entry = annotations.get(key) ?? {
+        key, id: revision.entry, place: revision.place, fields: new Map(), updated: 0,
+      };
+      const versions = entry.fields.get(revision.field) ?? [];
+      versions.push(revision);
+      entry.fields.set(revision.field, versions);
+      entry.updated = Math.max(entry.updated, revision.updated ?? 0);
+      annotations.set(key, entry);
+    }
+    for (const entry of annotations.values()) {
+      entry.fragments = entry.fields.get('anchor')?.[0]?.value;
+      entry.values = {};
+      entry.alternatives = new Map();
+      for (const field of Object.keys(inputs)) {
+        const values = [...new Set((entry.fields.get(field) ?? []).map(revision => revision.value))].sort();
+        const initial = field === 'style'
+          ? (entry.fields.get('highlight')?.some(revision => revision.value) ? defaultStyle : 'none')
+          : '';
+        entry.values[field] = values.find(value => value && value !== 'none') ?? values[0] ?? initial;
+        if (values.length > 1) entry.alternatives.set(field, values.filter(value => value !== entry.values[field]));
+      }
     }
     return annotations;
   }
 
+  function isVisible(entry) {
+    const {title, note, style, tags, notebooks} = entry.values;
+    return (!entry.id || entry.fragments) && (title || note || style !== 'none' || tags || notebooks || entry.alternatives.size);
+  }
+
+  function entriesByDate(annotations) {
+    return [...annotations.values()].filter(isVisible).sort((a, b) => b.updated - a.updated || a.key.localeCompare(b.key));
+  }
+
   function repaint() {
     let annotations;
-    try { annotations = currentAnnotations(); } catch { return; }
-    for (const button of passage.querySelectorAll('[data-annotation]')) {
-      const fields = annotations.get(button.dataset.annotation);
-      const hasNote = fields?.note.some(revision => revision.value);
-      const highlighted = fields?.highlight.some(revision => revision.value);
-      button.closest('.verse').classList.toggle('personal-highlight', Boolean(highlighted));
-      button.textContent = hasNote ? '✎' : '+';
-      const state = [hasNote && 'есть заметка', highlighted && 'выделено'].filter(Boolean).join(', ');
-      button.setAttribute('aria-label', `Личная заметка и выделение, стих ${button.dataset.number}${state ? `, ${state}` : ''}`);
-      button.title = 'Личная заметка и выделение';
-    }
-  }
-
-  function showEditor(button) {
-    const {annotation: place, number} = button.dataset;
-    $('annotation-title').textContent = `${titleFor(parseRoute(place))}:${number}`;
-    const submit = $('annotation-form').querySelector('[type="submit"]');
-    let fields;
-    try {
-      fields = currentAnnotations().get(place) ?? {note: [], highlight: []};
-      $('annotation-error').hidden = true;
-      submit.disabled = false;
-    } catch {
-      noteInput.value = '';
-      highlightInput.checked = false;
-      $('annotation-conflicts').hidden = true;
-      submit.disabled = true;
-      $('annotation-error').textContent = 'Не удалось прочитать записи в этом браузере.';
-      $('annotation-error').hidden = false;
-      editor.showModal();
+    try { annotations = entriesByDate(currentAnnotations()); } catch {
+      if (notes.open) showNotesMessage('Не удалось прочитать записи в этом браузере.');
       return;
     }
-    const notes = [...new Set(fields.note.map(revision => revision.value))].sort();
-    const highlights = new Set(fields.highlight.map(revision => revision.value));
-    const versions = $('annotation-versions');
-    const conflicts = $('annotation-conflicts');
-    versions.replaceChildren(...notes.slice(1).map(value => {
-      const item = document.createElement('li');
-      item.textContent = value || 'Заметка удалена на другом устройстве.';
-      return item;
-    }));
-    conflicts.hidden = notes.length < 2;
-    conflicts.open = !conflicts.hidden;
-    $('annotation-resolve').checked = false;
-    noteInput.value = notes[0] ?? '';
-    highlightInput.checked = highlights.has(true);
-    editing = {place, fields, note: noteInput.value, highlight: highlightInput.checked};
-    editor.showModal();
+    if (notes.open) renderNotes(annotations);
+    if (annotationText.selection()) {
+      repaintPending = true;
+      return;
+    }
+    repaintPending = false;
+    const byVerse = new Map();
+    for (const entry of annotations) {
+      for (const part of entry.fragments ?? [{verse: entry.place}]) {
+        const covered = byVerse.get(part.verse) ?? [];
+        covered.push({entry, fragment: entry.fragments ? part : null});
+        byVerse.set(part.verse, covered);
+      }
+    }
+    for (const button of passage.querySelectorAll('[data-annotation]')) {
+      const covered = byVerse.get(button.dataset.annotation) ?? [];
+      button.textContent = covered.length > 1 ? String(covered.length) : covered.length ? '✎' : '+';
+      button.dataset.entries = covered.map(({entry}) => entry.key).join(' ');
+      button.setAttribute('aria-label', `Заметки и выделения, стих ${button.dataset.number}${covered.length ? `, записей: ${covered.length}` : ''}`);
+      button.title = 'Заметки и выделения';
+      annotationText.paint(button.closest('.verse').querySelector('.verse-text'), covered);
+    }
   }
 
-  function saveAnnotation(event) {
-    event.preventDefault();
-    const values = {note: noteInput.value.trim(), highlight: highlightInput.checked};
+  function referenceLabel(entry) {
+    const start = parseRoute(entry.place);
+    const last = parseRoute(entry.fragments?.at(-1).verse ?? entry.place);
+    const end = last.end ?? last.verse;
+    return `${titleFor(start)}:${start.verse}${end > start.verse ? `–${end}` : ''}`;
+  }
+
+  function makeEntry(place, fragments) {
+    const id = fragments ? crypto.randomUUID() : undefined;
+    return {
+      place, fragments, id, key: id ?? place, fields: new Map(), alternatives: new Map(),
+      values: {note: '', title: '', style: 'none', tags: '', notebooks: ''},
+    };
+  }
+
+  function quoteFor(entry) {
+    return entry.fragments?.map(fragment => fragment.quote).join(' ') ?? '';
+  }
+
+  function showConflicts() {
+    const versions = $('annotation-versions');
+    const conflicts = $('annotation-conflicts');
+    versions.replaceChildren();
+    for (const [field, values] of editing.alternatives) {
+      for (const value of values) {
+        const item = document.createElement('li');
+        const label = field === 'style' ? [...inputs.style.options].find(option => option.value === value).text : value;
+        item.textContent = `${fieldNames[field]} · ${label || 'Удалено'}`;
+        versions.append(item);
+      }
+    }
+    conflicts.hidden = !editing.alternatives.size;
+    conflicts.open = !conflicts.hidden;
+  }
+
+  function showEditor(entry, {mark = false, suggestMark = false} = {}) {
+    editing = entry;
+    $('annotation-title').textContent = referenceLabel(entry);
+    const quote = $('annotation-quote');
+    quote.textContent = quoteFor(entry);
+    quote.hidden = !quote.textContent;
+    editorStatus.hidden = true;
+    for (const [field, input] of Object.entries(inputs)) input.value = editing.values[field];
+    editing.suggestMark = suggestMark;
+    if (mark || suggestMark) inputs.style.value = defaultStyle;
+    $('annotation-delete-note').hidden = !(entry.values.title || entry.values.note);
+    showConflicts();
+    editor.showModal();
+    (mark ? inputs.style : inputs.note).focus();
+    if (mark) saveAnnotation();
+  }
+
+  function storeRevision(entry, field, value) {
+    const revision = {
+      id: crypto.randomUUID(), place: entry.place, field, value, updated: Date.now(),
+      ...(entry.id && {entry: entry.id}),
+      parents: (entry.fields.get(field) ?? []).map(parent => parent.id),
+    };
+    localStorage.setItem(revisionPrefix + revision.id, JSON.stringify(revision));
+    entry.fields.set(field, [revision]);
+  }
+
+  function groupNames(value) {
+    return [...new Set(value.split(',').map(name => name.trim()).filter(Boolean))];
+  }
+
+  function saveAnnotation(resolve = []) {
+    clearTimeout(saveTimer);
+    if (!editing) return true;
+    const values = Object.fromEntries(Object.entries(inputs).map(([field, input]) => [field, input.value.trim()]));
+    for (const field of ['tags', 'notebooks']) values[field] = groupNames(values[field]).join(',');
+    if (editing.suggestMark && !values.note && !values.title && values.style === defaultStyle) {
+      values.style = editing.values.style;
+    }
     let changed = false;
+    let failed = false;
     try {
-      for (const field of ['note', 'highlight']) {
-        const resolveNote = field === 'note' && $('annotation-resolve').checked;
-        if (!resolveNote && values[field] === editing[field]) continue;
-        const revision = {
-          id: crypto.randomUUID(),
-          place: editing.place,
-          field,
-          value: values[field],
-          parents: editing.fields[field].map(revision => revision.id),
-        };
-        localStorage.setItem(revisionPrefix + revision.id, JSON.stringify(revision));
-        editing[field] = values[field];
-        editing.fields[field] = [revision];
-        if (field === 'note') $('annotation-resolve').checked = false;
+      for (const [field, value] of Object.entries(values)) {
+        if (!resolve.includes(field) && value === editing.values[field]) continue;
+        if (editing.id && !editing.fields.has('anchor')) storeRevision(editing, 'anchor', editing.fragments);
+        storeRevision(editing, field, value);
+        editing.values[field] = value;
+        editing.alternatives.delete(field);
         changed = true;
       }
-      editor.close();
     } catch {
-      $('annotation-error').textContent = 'Не удалось сохранить все изменения в этом браузере.';
-      $('annotation-error').hidden = false;
+      failed = true;
     }
     if (changed) {
+      if (values.style === defaultStyle) editing.suggestMark = false;
+      showConflicts();
+      $('annotation-delete-note').hidden = !(editing.values.title || editing.values.note);
       repaint();
       scheduleSync();
     }
+    if (changed || failed) {
+      editorStatus.textContent = failed ? 'Не удалось сохранить все изменения в этом браузере.' : 'Сохранено на устройстве';
+      editorStatus.classList.toggle('error', failed);
+      editorStatus.hidden = false;
+    }
+    return !failed;
+  }
+
+  function showNotesMessage(message) {
+    $('notes-empty').textContent = message;
+    $('notes-empty').hidden = !message;
+  }
+
+  function updateFilter(select, names, label) {
+    const selected = select.value;
+    select.replaceChildren(new Option(label, ''), ...names.map(name => new Option(name, name)));
+    if (names.includes(selected)) select.value = selected;
+  }
+
+  function entryButton(entry) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'annotation-preview';
+    const title = document.createElement('strong');
+    title.textContent = entry.values.title || referenceLabel(entry);
+    const preview = document.createElement('span');
+    preview.textContent = entry.values.note || quoteFor(entry);
+    preview.hidden = !preview.textContent;
+    button.append(title, preview);
+    button.addEventListener('click', () => {
+      if (picker.open) picker.close();
+      showEditor(entry);
+    });
+    return button;
+  }
+
+  function renderNotes(entries) {
+    const query = $('notes-search').value.trim().toLocaleLowerCase('ru');
+    const tag = $('notes-tag');
+    const notebook = $('notes-notebook');
+    const names = field => [...new Set(entries.flatMap(entry => groupNames(entry.values[field])))].sort((a, b) => a.localeCompare(b, 'ru'));
+    updateFilter(tag, names('tags'), 'Все теги');
+    updateFilter(notebook, names('notebooks'), 'Все блокноты');
+    const items = [];
+    for (const entry of entries) {
+      if (tag.value && !groupNames(entry.values.tags).includes(tag.value) ||
+          notebook.value && !groupNames(entry.values.notebooks).includes(notebook.value)) continue;
+      const searchable = [referenceLabel(entry), quoteFor(entry), ...Object.values(entry.values)];
+      if (!searchable.some(text => text.toLocaleLowerCase('ru').includes(query))) continue;
+      const item = document.createElement('li');
+      const jump = link(referenceLabel(entry), entry.place, 'annotation-jump');
+      jump.addEventListener('click', event => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        notes.close();
+        const place = parseRoute(entry.place);
+        open(place.verse === 1 && !place.end ? {...place, end: 1} : place);
+      });
+      item.append(entryButton(entry), jump);
+      items.push(item);
+    }
+    $('notes-list').replaceChildren(...items);
+    showNotesMessage(items.length ? '' : entries.length ? 'Ничего не найдено.' : 'Заметок и выделений пока нет.');
+  }
+
+  function showPicker(entries, verse) {
+    wholeVerse = verse;
+    $('annotation-whole-verse').hidden = !verse;
+    $('annotation-choices').replaceChildren(...entries.map(entry => {
+      const item = document.createElement('li');
+      item.append(entryButton(entry));
+      return item;
+    }));
+    picker.showModal();
+  }
+
+  function refreshSelection() {
+    selectedFragments = annotationText.selection();
+    selectionActions.hidden = !selectedFragments;
+    if (!selectedFragments && repaintPending) repaint();
+  }
+
+  function useSelection(mark) {
+    const fragments = selectedFragments;
+    if (!fragments) return;
+    getSelection().removeAllRanges();
+    refreshSelection();
+    const signature = JSON.stringify(fragments);
+    let existing;
+    try {
+      existing = entriesByDate(currentAnnotations()).find(entry => entry.fragments && JSON.stringify(entry.fragments) === signature);
+    } catch { /* The editor will report storage failures on save. */ }
+    showEditor(existing ?? makeEntry(fragments[0].verse, fragments), {
+      mark: mark && (!existing || existing.values.style === 'none'),
+      suggestMark: !mark && !existing,
+    });
   }
 
   function renderSettings() {
@@ -178,20 +362,32 @@
       if (file.encoding !== 'base64') throw new Error();
       const bytes = Uint8Array.from(atob(file.content), char => char.charCodeAt(0));
       const {version, revisions} = JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(bytes));
-      if (version !== 1 || !Array.isArray(revisions)) throw new Error();
+      if (![1, 2].includes(version) || !Array.isArray(revisions)) throw new Error();
       const byId = new Map();
+      const entries = new Map();
       for (const revision of revisions) {
-        const {id, place, field, value, parents} = revision;
-        if (!revisionId.test(id) || byId.has(id) || typeof place !== 'string' || !parseRoute(place) ||
-            !Array.isArray(parents) || parents.some(parent => !revisionId.test(parent) || parent === id) ||
-            !(field === 'note' && typeof value === 'string' && value.length <= 10000 ||
-              field === 'highlight' && typeof value === 'boolean')) throw new Error();
+        const {id, entry, place, field, value, parents, updated} = revision;
+        const legacyField = field === 'note' || field === 'highlight';
+        if (typeof id !== 'string' || !revisionId.test(id) || byId.has(id) ||
+            typeof place !== 'string' || !parseRoute(place) ||
+            (entry !== undefined && (typeof entry !== 'string' || !revisionId.test(entry))) ||
+            (updated !== undefined && (!Number.isSafeInteger(updated) || updated < 0)) ||
+            !Array.isArray(parents) || parents.some(parent => typeof parent !== 'string' || !revisionId.test(parent) || parent === id) ||
+            (version === 1 && (entry !== undefined || !legacyField)) ||
+            !validField(field, value, place, entry)) throw new Error();
+        if (entry) {
+          const info = entries.get(entry) ?? {place, hasAnchor: false};
+          if (info.place !== place) throw new Error();
+          info.hasAnchor ||= field === 'anchor';
+          entries.set(entry, info);
+        }
         byId.set(id, revision);
       }
-      for (const {parents, place, field} of revisions) {
+      if ([...entries.values()].some(entry => !entry.hasAnchor)) throw new Error();
+      for (const {parents, place, field, entry} of revisions) {
         for (const id of parents) {
           const parent = byId.get(id);
-          if (parent?.place !== place || parent.field !== field) throw new Error();
+          if (parent?.place !== place || parent.field !== field || parent.entry !== entry) throw new Error();
         }
       }
       return byId;
@@ -200,8 +396,23 @@
     }
   }
 
+  function validField(field, value, place, entry) {
+    switch (field) {
+      case 'anchor': return entry !== undefined && annotationText.validFragments(value, place);
+      case 'highlight': return entry === undefined && typeof value === 'boolean';
+      case 'style': return typeof value === 'string' && /^(?:none|(?:fill|line)-(?:yellow|green|blue|rose))$/.test(value);
+      case 'title': return typeof value === 'string' && value.length <= 180;
+      case 'note': return typeof value === 'string' && value.length <= 10000;
+      case 'tags':
+      case 'notebooks': return typeof value === 'string' && value.length <= 400;
+      default: return false;
+    }
+  }
+
   function encodeRevisions(revisions) {
-    const json = JSON.stringify({version: 1, revisions: [...revisions.values()]});
+    const values = [...revisions.values()];
+    const version = values.some(({entry, field}) => entry || !['note', 'highlight'].includes(field)) ? 2 : 1;
+    const json = JSON.stringify({version, revisions: values});
     const bytes = new TextEncoder().encode(json);
     if (bytes.length > 1_000_000) throw new Error('Файл заметок достиг предела синхронизации (1 МБ).');
     let binary = '';
@@ -320,13 +531,70 @@
     scheduleSync();
   }
 
-  passage.addEventListener('chapter-shown', repaint);
-  passage.addEventListener('click', event => {
-    const button = event.target.closest('[data-annotation]');
-    if (button) showEditor(button);
+  passage.addEventListener('chapter-shown', () => {
+    refreshSelection();
+    repaint();
   });
-  $('annotation-form').addEventListener('submit', saveAnnotation);
-  $('annotation-cancel').addEventListener('click', () => editor.close());
+  passage.addEventListener('click', event => {
+    if (annotationText.selection() || event.target.closest('.study-note-word')) return;
+    const target = event.target.closest('[data-entries]');
+    if (!target) return;
+    const {annotation: verse, entries: keys} = target.dataset;
+    let annotations;
+    try { annotations = currentAnnotations(); } catch { annotations = new Map(); }
+    const entries = keys.split(' ').map(key => annotations.get(key)).filter(Boolean);
+    if (!entries.length && verse) showEditor(makeEntry(verse));
+    else if (entries.length === 1 && (!verse || entries[0].place === verse && !entries[0].id)) showEditor(entries[0]);
+    else if (entries.length) showPicker(entries, verse);
+  });
+  $('annotation-picker-close').addEventListener('click', () => picker.close());
+  $('annotation-whole-verse').addEventListener('click', () => {
+    const existing = currentAnnotations().get(wholeVerse);
+    picker.close();
+    showEditor(existing ?? makeEntry(wholeVerse));
+  });
+  $('annotation-form').addEventListener('submit', event => {
+    event.preventDefault();
+    if (saveAnnotation()) editor.close();
+  });
+  $('annotation-form').addEventListener('input', () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveAnnotation, 1000);
+  });
+  $('annotation-style').addEventListener('change', () => {
+    editing.suggestMark = false;
+    saveAnnotation();
+  });
+  $('annotation-resolve').addEventListener('click', () => saveAnnotation([...editing.alternatives.keys()]));
+  $('annotation-delete-note').addEventListener('click', () => {
+    if (!confirm('Удалить заголовок и текст этой заметки?')) return;
+    inputs.title.value = inputs.note.value = '';
+    if (saveAnnotation(['title', 'note'])) editor.close();
+  });
+  editor.addEventListener('cancel', event => {
+    if (!saveAnnotation()) event.preventDefault();
+  });
+  editor.addEventListener('close', () => {
+    clearTimeout(saveTimer);
+    editing = null;
+  });
+  selectionActions.addEventListener('pointerdown', event => event.preventDefault());
+  document.addEventListener('selectionchange', refreshSelection);
+  $('selection-mark').addEventListener('click', () => useSelection(true));
+  $('selection-note').addEventListener('click', () => useSelection(false));
+  for (const button of document.querySelectorAll('[data-open-notes]')) {
+    button.addEventListener('click', () => {
+      notes.showModal();
+      repaint();
+    });
+  }
+  for (const filter of ['notes-search', 'notes-tag', 'notes-notebook']) $(filter).addEventListener('input', repaint);
+  $('notes-close').addEventListener('click', () => notes.close());
+  addEventListener('hashchange', refreshSelection);
+  addEventListener('pagehide', () => saveAnnotation());
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) saveAnnotation();
+  });
   $('sync-settings').addEventListener('click', () => {
     renderSettings();
     settings.showModal();
