@@ -23,16 +23,19 @@
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="#library"><img class="brand-mark" src="icon-192.png?v=liahona" width="32" height="32" alt="">Писания</a>
+      <div class="topbar-start">
+        <a class="brand" href="#library"><img class="brand-mark" src="icon-192.png?v=liahona" width="32" height="32" alt="">Писания</a>
+        <nav class="main-nav" aria-label="Основная навигация">
+          <a id="home-link" href="#library">Главная</a>
+          <a id="settings-link" href="#settings">Настройки</a>
+        </nav>
+      </div>
       <form id="jump-form" class="jump-form" role="search">
         <label class="sr-only" for="jump-input">Книга, глава и стих</label>
         <input type="search" id="jump-input" placeholder="Например, Ин. 3:16" required>
         <button type="submit">Перейти</button>
       </form>
-      <div class="topbar-actions">
-        <button class="button" id="theme-toggle" type="button" aria-label="Тёмная тема" aria-pressed="false" title="Тёмная тема"><span aria-hidden="true"></span></button>
-        <button class="button" id="toc-toggle" type="button" aria-controls="toc-panel" aria-expanded="false">Оглавление</button>
-      </div>
+      <button class="button" id="toc-toggle" type="button" aria-controls="toc-panel" aria-expanded="false">Оглавление</button>
     </div>
   </header>
   <main>
@@ -55,7 +58,6 @@
             <h1 id="library-title" tabindex="-1">Библиотека</h1>
             <div class="library-actions">
               <button class="button" type="button" data-open-notes>Заметки</button>
-              <button id="sync-settings" class="button" type="button">Синхронизация GitHub</button>
             </div>
           </header>
           <a class="continue" id="continue-link" hidden>
@@ -77,6 +79,24 @@
               <li><a href="https://media.ldscdn.org/epub/lds-scriptures/doctrine-and-covenants-pearl-of-great-price/06897_2013-00-0000-doctrine-and-covenants-33569-rus.epub" target="_blank" rel="noopener noreferrer">Скачать Учение и Заветы и Драгоценную Жемчужину</a></li>
             </ul>
           </section>
+        </section>
+        <section id="settings-view" aria-labelledby="settings-title" hidden>
+          <header class="page-heading">
+            <h1 id="settings-title" tabindex="-1">Настройки</h1>
+          </header>
+          <div class="settings-panel">
+            <label class="settings-row">
+              Тёмная тема
+              <input id="theme-toggle" type="checkbox">
+            </label>
+            <label class="settings-row">
+              Крупный текст
+              <input id="large-text-setting" type="checkbox">
+            </label>
+            <div class="settings-row">
+              <button id="sync-settings" class="button" type="button">Синхронизация GitHub</button>
+            </div>
+          </div>
         </section>
         <section id="contents-view" aria-labelledby="contents-title" hidden>
           <header class="page-heading">

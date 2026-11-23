@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 const library = $('library-view');
+const settings = $('settings-view');
 const contents = $('contents-view');
 const reader = $('reader-view');
 const passage = $('passage');
@@ -19,6 +20,8 @@ const tocChapters = new Map();
 const tocEditions = new Map();
 const localEditions = new Map();
 const fontToggle = $('font-toggle');
+const largeTextSetting = $('large-text-setting');
+const jumpForm = $('jump-form');
 const bookFile = $('book-file');
 const openBookFile = $('open-book-file');
 const bookFileStatus = $('book-file-status');
@@ -186,6 +189,7 @@ function markTocChapter(place) {
 }
 
 function syncToc() {
+  if (!settings.hidden && tocDialog.open) tocDialog.close();
   if (tocNarrow.matches) {
     tocSidebar.hidden = true;
     if (tocPanel.parentElement !== tocDialog) tocDialog.append(tocPanel);
@@ -194,7 +198,7 @@ function syncToc() {
   } else {
     if (tocDialog.open) tocDialog.close();
     if (tocPanel.parentElement !== tocSidebar) tocSidebar.append(tocPanel);
-    tocSidebar.hidden = !(desktopTocOpen ?? Boolean(currentPlace));
+    tocSidebar.hidden = !settings.hidden || !(desktopTocOpen ?? Boolean(currentPlace));
     tocToggle.removeAttribute('aria-haspopup');
     tocToggle.setAttribute('aria-expanded', String(!tocSidebar.hidden));
   }
@@ -569,21 +573,32 @@ async function render() {
   clearTimeout(scrollTimer);
   restoredScrollY = null;
   $('jump-error').hidden = true;
-  const place = parseRoute(location.hash);
-  const edition = location.hash.match(/^#contents\/(bible|bofm|dc|pgp)$/)?.[1];
+  const hash = location.hash;
+  const place = parseRoute(hash);
+  const edition = hash.match(/^#contents\/(bible|bofm|dc|pgp)$/)?.[1];
+  const showSettings = hash === '#settings';
   currentPlace = place;
   reader.hidden = !place;
-  library.hidden = Boolean(place || edition);
+  library.hidden = Boolean(place || edition || showSettings);
+  settings.hidden = !showSettings;
+  jumpForm.hidden = tocToggle.hidden = showSettings;
   contents.hidden = !edition;
+  $('home-link').setAttribute('aria-current', library.hidden ? 'false' : 'page');
+  $('settings-link').setAttribute('aria-current', showSettings ? 'page' : 'false');
   markTocChapter(place);
   syncToc();
+  if (showSettings) {
+    window.scrollTo(0, 0);
+    $('settings-title').focus({preventScroll: true});
+    return;
+  }
   if (edition) {
     renderContents(edition);
     return;
   }
   if (!place) {
     renderLibrary();
-    if (location.hash === '#library') {
+    if (hash === '#library') {
       window.scrollTo(0, 0);
       $('library-title').focus({preventScroll: true});
     }
@@ -624,6 +639,7 @@ async function render() {
 function updateFont(large) {
   document.documentElement.dataset.textSize = large ? 'large' : 'normal';
   fontToggle.setAttribute('aria-pressed', String(large));
+  largeTextSetting.checked = large;
   savePreference('large-text', String(large));
 }
 
@@ -696,7 +712,8 @@ addEventListener('keydown', event => {
 tocContent.addEventListener('click', event => {
   if (tocDialog.open && event.target.closest('a') && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) tocDialog.close();
 });
-fontToggle.addEventListener('click', () => updateFont(fontToggle.getAttribute('aria-pressed') !== 'true'));
+fontToggle.addEventListener('click', () => updateFont(!largeTextSetting.checked));
+largeTextSetting.addEventListener('change', () => updateFont(largeTextSetting.checked));
 openBookFile.addEventListener('click', () => bookFile.click());
 bookFile.addEventListener('change', () => {
   const file = bookFile.files[0];
@@ -706,7 +723,7 @@ addEventListener('hashchange', () => {
   bookFileStatus.hidden = true;
   void render();
 });
-$('jump-form').addEventListener('submit', event => {
+jumpForm.addEventListener('submit', event => {
   event.preventDefault();
   const destination = parseReference($('jump-input').value, currentPlace?.edition ?? 'bible');
   if (destination && parseRoute(route(destination))) open(destination);

@@ -23,7 +23,8 @@ const readerTheme = (() => {
     root.dataset.theme = dark ? 'dark' : 'light';
     colorScheme.content = root.dataset.theme;
     themeColor.content = dark ? '#191512' : '#f6eee4';
-    document.getElementById('theme-toggle')?.setAttribute('aria-pressed', String(dark));
+    const toggle = document.getElementById('theme-toggle');
+    if (toggle) toggle.checked = dark;
   }
 
   function set(theme) {
@@ -34,9 +35,9 @@ const readerTheme = (() => {
   apply(get());
   document.addEventListener('DOMContentLoaded', () => {
     const toggle = document.getElementById('theme-toggle');
-    toggle.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
-    toggle.addEventListener('click', () => {
-      set(root.dataset.theme === 'dark' ? 'light' : 'dark');
+    toggle.checked = root.dataset.theme === 'dark';
+    toggle.addEventListener('change', () => {
+      set(toggle.checked ? 'dark' : 'light');
       dispatchEvent(new Event('reader-theme-change'));
     });
   });
