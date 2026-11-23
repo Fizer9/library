@@ -706,10 +706,78 @@ async function start() {
   await render();
 }
 
-if (hosted && window.isSecureContext && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js').catch(error => {
-    console.warn('Не удалось настроить автономный режим.', error);
+function setupOfflineReading() {
+  if (!hosted) return;
+  $('offline-settings').hidden = false;
+  const status = $('offline-status');
+  if (!window.isSecureContext || !('serviceWorker' in navigator)) {
+    status.textContent = 'Недоступен в этом браузере.';
+    return;
+  }
+
+  const workers = navigator.serviceWorker;
+  const failed = 'Откройте читалку с интернетом, чтобы подготовить её.';
+  let registration;
+  let cancelCheck;
+
+  function showUnavailable() {
+    if (registration.waiting) status.textContent = 'Обновление готово. Закройте все вкладки читалки и откройте её снова.';
+    else if (!registration.installing) status.textContent = failed;
+  }
+
+  function checkOfflineStatus() {
+    cancelCheck?.();
+    const controller = workers.controller;
+    if (!registration || !controller) return;
+
+    const {port1, port2} = new MessageChannel();
+    const timeout = setTimeout(showUnavailable, 3000);
+    cancelCheck = () => {
+      clearTimeout(timeout);
+      port1.close();
+    };
+    port1.onmessage = event => {
+      cancelCheck();
+      if (event.data === true) status.textContent = 'Готово к работе офлайн.';
+      else showUnavailable();
+    };
+    controller.postMessage('offline-status', [port2]);
+  }
+
+  function watchInstallation() {
+    const installing = registration.installing;
+    installing?.addEventListener('statechange', () => {
+      if (installing.state === 'installed' || installing.state === 'redundant') checkOfflineStatus();
+      if (installing.state === 'redundant' && !workers.controller) status.textContent = failed;
+    });
+  }
+
+  async function registerWorker() {
+    try {
+      const next = await workers.register('./service-worker.js', {updateViaCache: 'none'});
+      if (registration !== next) {
+        registration = next;
+        registration.addEventListener('updatefound', watchInstallation);
+        watchInstallation();
+      }
+      checkOfflineStatus();
+    } catch {
+      if (registration && workers.controller) checkOfflineStatus();
+      else status.textContent = failed;
+    }
+  }
+
+  workers.addEventListener('controllerchange', checkOfflineStatus);
+  addEventListener('online', () => {
+    if (!registration?.active) {
+      status.textContent = 'Подготовка к работе офлайн…';
+      void registerWorker();
+      return;
+    }
+    checkOfflineStatus();
+    void registration.update().catch(() => {});
   });
+  void registerWorker();
 }
 
 buildToc();
@@ -771,4 +839,5 @@ addEventListener('scroll', () => {
     if (first) savePreference('last', route({...currentPlace, verse: +first.dataset.verse, end: undefined}));
   }, 120);
 }, {passive: true});
+setupOfflineReading();
 void start();

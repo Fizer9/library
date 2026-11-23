@@ -1,6 +1,7 @@
 const scope = new URL(self.registration.scope);
 const cachePrefix = `potok:${scope.pathname}:`;
-const cacheName = `${cachePrefix}v15`;
+const revision = '4c2cf43c1ef3573e';
+const cacheName = `${cachePrefix}${revision}`;
 const home = new URL('index.html', scope).href;
 const assets = new Set([
   home,
@@ -9,11 +10,7 @@ const assets = new Set([
 ]);
 
 self.addEventListener('install', event => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(cacheName);
-    await cache.addAll([...assets].map(url => new Request(url, {cache: 'reload'})));
-    await self.skipWaiting();
-  })());
+  event.waitUntil(prepareOfflineCache());
 });
 
 self.addEventListener('activate', event => {
@@ -32,21 +29,28 @@ self.addEventListener('fetch', event => {
   url.hash = '';
   const isHome = request.mode === 'navigate' && (url.href === scope.href || url.href === home);
   if (!isHome && !assets.has(url.href)) return;
-  event.respondWith(loadAsset(request, isHome ? home : url.href));
+  event.respondWith(loadAsset(isHome ? home : url.href));
 });
 
-async function loadAsset(request, key) {
+self.addEventListener('message', event => {
+  const [reply] = event.ports;
+  if (event.data !== 'offline-status' || !reply) return;
+  event.waitUntil(prepareOfflineCache().then(() => reply.postMessage(true), () => reply.postMessage(false)));
+});
+
+async function prepareOfflineCache() {
   const cache = await caches.open(cacheName);
-  try {
-    const response = await fetch(request, {cache: 'no-cache'});
-    if (response.ok) {
-      await cache.put(key, response.clone()).catch(() => {});
-      return response;
-    }
-    return await cache.match(key) ?? response;
-  } catch (error) {
-    const available = await cache.match(key);
-    if (available) return available;
-    throw error;
-  }
+  const available = new Set((await cache.keys()).map(request => request.url));
+  const missing = [...assets].filter(url => !available.has(url));
+  if (missing.length) await cache.addAll(missing.map(url => new Request(url, {cache: 'reload'})));
+}
+
+async function loadAsset(key) {
+  const cache = await caches.open(cacheName).catch(() => null);
+  const available = await cache?.match(key).catch(() => null);
+  if (available) return available;
+
+  const response = await fetch(key, {cache: 'reload'});
+  if (response.status === 200) await cache?.put(key, response.clone()).catch(() => {});
+  return response;
 }
