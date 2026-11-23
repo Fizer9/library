@@ -16,7 +16,6 @@ const studyDialog = $('study-dialog');
 const studyNote = $('study-note');
 const studyBody = $('study-note-body');
 const studyClose = $('study-close');
-const tocChapters = new Map();
 const tocEditions = new Map();
 const localEditions = new Map();
 const readingSettings = $('reading-settings');
@@ -31,7 +30,7 @@ let rendering = 0;
 let scrollTimer;
 let restoredScrollY = null;
 let desktopTocOpen;
-let currentTocChapter;
+let tocBooksScroll = 0;
 let activeStudyButton;
 
 function chapterCount(edition, book) {
@@ -49,6 +48,14 @@ function parseRoute(hash) {
 
 function route(place) {
   return `#${place.edition}/${place.book}/${place.chapter}/${place.verse}${place.end ? `-${place.end}` : ''}`;
+}
+
+function parseContentsRoute(hash) {
+  const match = hash.match(/^#contents\/(bible|bofm|dc|pgp)(?:\/([\w-]+))?$/);
+  if (!match) return null;
+  const [, edition, bookId] = match;
+  const book = editions[edition].books.find(item => item.id === bookId);
+  return bookId && !book ? null : {edition, book};
 }
 
 function titleFor(place) {
@@ -109,8 +116,9 @@ function renderLibrary() {
   }));
 }
 
-function tocList(items) {
+function tocList(items, className) {
   const list = document.createElement('ul');
+  list.className = className;
   for (const item of items) {
     const row = document.createElement('li');
     row.append(item);
@@ -119,73 +127,100 @@ function tocList(items) {
   return list;
 }
 
-function tocBranch(title, items) {
-  const branch = document.createElement('details');
-  const summary = document.createElement('summary');
-  summary.textContent = title;
-  branch.append(summary, tocList(items));
-  return branch;
+function contentsBookName(book) {
+  return {dc: 'Разделы', od: 'Официальные заявления', fac: 'Факсимиле'}[book.id] ?? book.name;
 }
 
-function tocBook(editionId, book) {
-  const count = chapterCount(editionId, book);
-  const heading = {dc: 'Разделы', od: 'Официальные заявления', fac: 'Факсимиле'}[book.id] ?? book.name;
-  const chapters = Array.from({length: count}, (_, index) => {
+function chapterGrid(edition, book) {
+  const chapters = Array.from({length: chapterCount(edition, book)}, (_, index) => {
     const chapter = index + 1;
-    const destination = route({edition: editionId, book: book.id, chapter, verse: 1});
-    const chapterLink = link(count === 1 ? book.name : String(chapter), destination);
-    tocChapters.set(destination, chapterLink);
-    return chapterLink;
+    return link(String(chapter), route({edition, book: book.id, chapter, verse: 1}));
   });
-  if (count === 1) return chapters[0];
-  const branch = tocBranch(heading, chapters);
-  branch.className = 'chapter-list';
-  return branch;
+  return tocList(chapters, 'chapter-grid');
+}
+
+function bookGrid(edition, books) {
+  return tocList(books.map(book => {
+    const destination = chapterCount(edition, book) === 1
+      ? route({edition, book: book.id, chapter: 1, verse: 1})
+      : `#contents/${edition}/${book.id}`;
+    return link(contentsBookName(book), destination, 'book-card');
+  }), 'book-grid');
+}
+
+function bookLists(edition, headingTag) {
+  const {books} = editions[edition];
+  if (edition !== 'bible') return [bookGrid(edition, books)];
+  return ['Ветхий Завет', 'Новый Завет'].map(group => {
+    const section = document.createElement('section');
+    section.className = 'book-group';
+    const title = document.createElement(headingTag);
+    title.textContent = group;
+    section.append(title, bookGrid(edition, books.filter(book => book.group === group)));
+    return section;
+  });
 }
 
 function buildToc() {
   const collections = Object.entries(editions).map(([id, edition]) => {
-    const items = id === 'bible'
-      ? ['Ветхий Завет', 'Новый Завет'].map(group => tocBranch(group, edition.books.filter(book => book.group === group).map(book => tocBook(id, book))))
-      : edition.books.map(book => tocBook(id, book));
-    const collection = tocBranch(edition.name, items);
+    const collection = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = edition.name;
+    collection.append(summary, ...bookLists(id, 'h3'));
     tocEditions.set(id, collection);
     return collection;
   });
-  tocContent.append(tocList(collections));
+  return tocList(collections, 'toc-editions');
 }
 
-function renderContents(edition) {
+function booksBackLink(edition) {
+  return link('К списку книг', `#contents/${edition}`, 'books-back');
+}
+
+function renderContents({edition, book}) {
   const heading = $('contents-title');
-  heading.textContent = editions[edition].name;
+  heading.textContent = book ? contentsBookName(book) : editions[edition].name;
   const navigation = $('edition-contents');
-  if (navigation.dataset.edition !== edition) {
-    const list = tocEditions.get(edition).lastElementChild.cloneNode(true);
-    for (const branch of list.querySelectorAll('details[open]')) branch.open = false;
-    for (const chapter of list.querySelectorAll('[aria-current]')) chapter.removeAttribute('aria-current');
-    const firstBook = list.querySelector('.chapter-list');
-    for (let branch = firstBook; branch; branch = branch.parentElement.closest('details')) branch.open = true;
-    navigation.replaceChildren(list);
-    navigation.dataset.edition = edition;
-  }
+  navigation.replaceChildren(...(book ? [booksBackLink(edition), chapterGrid(edition, book)] : bookLists(edition, 'h2')));
   window.scrollTo(0, 0);
   heading.focus({preventScroll: true});
 }
 
+function showTocBooks(edition) {
+  if (edition) tocEditions.get(edition).open = true;
+  if (tocContent.firstElementChild === tocBooks) return;
+  tocContent.replaceChildren(tocBooks);
+  delete tocContent.dataset.book;
+  tocContent.scrollTop = tocBooksScroll;
+}
+
+function showTocChapters(edition, book) {
+  if (tocContent.firstElementChild === tocBooks) tocBooksScroll = tocContent.scrollTop;
+  const title = document.createElement('h3');
+  title.className = 'toc-book-title';
+  title.tabIndex = -1;
+  title.textContent = contentsBookName(book);
+  tocContent.replaceChildren(title, booksBackLink(edition), chapterGrid(edition, book));
+  tocContent.dataset.book = book.id;
+  tocContent.scrollTop = 0;
+  return title;
+}
+
+function markTocChapter() {
+  tocContent.querySelector('[aria-current]')?.removeAttribute('aria-current');
+  if (!currentPlace) return;
+  const destination = route({...currentPlace, verse: 1, end: undefined});
+  tocContent.querySelector(`a[href="${destination}"]`)?.setAttribute('aria-current', 'page');
+}
+
 function revealTocChapter() {
-  if (!currentTocChapter?.getClientRects().length || !tocContent.clientHeight) return;
+  const current = tocContent.querySelector('[aria-current=page]');
+  if (!current?.getClientRects().length || !tocContent.clientHeight) return;
   const scrollArea = tocContent.getBoundingClientRect();
-  const chapter = currentTocChapter.getBoundingClientRect();
+  const chapter = current.getBoundingClientRect();
   if (chapter.top < scrollArea.top || chapter.bottom > scrollArea.bottom) {
     tocContent.scrollTop += chapter.top - scrollArea.top - (scrollArea.height - chapter.height) / 2;
   }
-}
-
-function markTocChapter(place) {
-  currentTocChapter?.removeAttribute('aria-current');
-  currentTocChapter = place ? tocChapters.get(route({...place, verse: 1, end: undefined})) : undefined;
-  currentTocChapter?.setAttribute('aria-current', 'page');
-  for (let branch = currentTocChapter?.closest('details'); branch; branch = branch.parentElement.closest('details')) branch.open = true;
 }
 
 function syncToc() {
@@ -576,25 +611,28 @@ async function render() {
   $('jump-error').hidden = true;
   const hash = location.hash;
   const place = parseRoute(hash);
-  const edition = hash.match(/^#contents\/(bible|bofm|dc|pgp)$/)?.[1];
+  const contentsRoute = parseContentsRoute(hash);
   const showSettings = hash === '#settings';
   currentPlace = place;
   reader.hidden = !place;
-  library.hidden = Boolean(place || edition || showSettings);
+  library.hidden = Boolean(place || contentsRoute || showSettings);
   settings.hidden = !showSettings;
   jumpForm.hidden = tocToggle.hidden = showSettings;
-  contents.hidden = !edition;
+  contents.hidden = !contentsRoute;
   $('home-link').setAttribute('aria-current', library.hidden ? 'false' : 'page');
   $('settings-link').setAttribute('aria-current', showSettings ? 'page' : 'false');
-  markTocChapter(place);
+  const book = place && editions[place.edition].books.find(item => item.id === place.book);
+  if (book && chapterCount(place.edition, book) > 1) showTocChapters(place.edition, book);
+  else showTocBooks(place?.edition);
+  markTocChapter();
   syncToc();
   if (showSettings) {
     window.scrollTo(0, 0);
     $('settings-title').focus({preventScroll: true});
     return;
   }
-  if (edition) {
-    renderContents(edition);
+  if (contentsRoute) {
+    renderContents(contentsRoute);
     return;
   }
   if (!place) {
@@ -780,7 +818,8 @@ function setupOfflineReading() {
   void registerWorker();
 }
 
-buildToc();
+const tocBooks = buildToc();
+tocContent.append(tocBooks);
 syncToc();
 tocToggle.addEventListener('click', () => {
   if (tocNarrow.matches) {
@@ -805,7 +844,25 @@ addEventListener('keydown', event => {
   if (event.key === 'Escape' && activeStudyButton && !studyDialog.open) closeStudyNote();
 });
 tocContent.addEventListener('click', event => {
-  if (tocDialog.open && event.target.closest('a') && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) tocDialog.close();
+  const anchor = event.target.closest('a');
+  if (!anchor || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  const destination = parseContentsRoute(anchor.getAttribute('href'));
+  if (!destination) {
+    if (tocDialog.open) tocDialog.close();
+    return;
+  }
+  event.preventDefault();
+  const {edition, book} = destination;
+  if (book) {
+    showTocChapters(edition, book).focus({preventScroll: true});
+    markTocChapter();
+    revealTocChapter();
+  } else {
+    const lastBook = tocContent.dataset.book;
+    showTocBooks(edition);
+    markTocChapter();
+    tocContent.querySelector(`a[href="#contents/${edition}/${lastBook}"]`)?.focus();
+  }
 });
 readingSettingsToggle.addEventListener('click', () => showReadingSettings(readingSettings.hidden));
 openBookFile.addEventListener('click', () => bookFile.click());
