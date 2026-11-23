@@ -83,7 +83,7 @@ button, summary { cursor: pointer; }
   z-index: 2;
   height: var(--bottom-nav-height);
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 12rem));
+  grid-template-columns: repeat(3, minmax(0, 8rem));
   justify-content: center;
   gap: 8px;
   padding-block: .375rem calc(.375rem + env(safe-area-inset-bottom, 0px));
@@ -91,9 +91,10 @@ button, summary { cursor: pointer; }
   border-top: 1px solid var(--line);
   background: var(--paper);
 }
-.main-nav a { display: grid; place-items: center; border-radius: 8px; color: var(--ink); }
+.main-nav :is(a, button) { display: grid; place-items: center; border-radius: 8px; color: var(--ink); }
+.main-nav button { padding: 0; border: 0; background: transparent; }
 .main-nav svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.main-nav a:hover { color: var(--accent); }
+.main-nav :is(a, button):hover { color: var(--accent); }
 .main-nav a[aria-current=page] { background: var(--tint); color: var(--accent); }
 @media (forced-colors: active) {
   .main-nav a[aria-current=page] { border: 1px solid Highlight; }
@@ -241,9 +242,6 @@ label.settings-row { cursor: pointer; }
 .verse, .section-paragraph, .chapter-preface { font: var(--text-size)/1.6 var(--text-font); }
 .verse { display: grid; grid-template-columns: 2rem minmax(0,1fr); align-items: baseline; gap: 8px; padding: 6px 8px 6px 4px; border-radius: 6px; scroll-margin: 14px; overflow-wrap: anywhere; }
 .verse[aria-current=true] { background: var(--tint); box-shadow: inset 2px 0 var(--accent); }
-.library-actions, .reader-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.library-actions { margin-top: .55rem; }
-.reader-actions { justify-content: flex-end; }
 .personal-mark { background: transparent; color: inherit; cursor: pointer; }
 .fill-yellow { --mark-color: var(--fill-yellow); }
 .fill-green { --mark-color: var(--fill-green); }
