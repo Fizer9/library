@@ -697,50 +697,106 @@ function closeReadingSettings() {
   readingSettingsToggle.focus({preventScroll: true});
 }
 
-function setupReadingSettings() {
+function setupReadingSize() {
   const root = document.documentElement;
-  const sizeSetting = $('reading-size-setting');
-  const sizeRange = $('reading-size');
-  const sizeValue = $('reading-size-value');
-  const sizeDown = $('reading-size-down');
-  const sizeUp = $('reading-size-up');
-  const sizes = [...sizeSetting.options];
-  const lastSize = sizes.length - 1;
-  sizeRange.max = lastSize;
+  const template = $('reading-size-template');
+  const controls = [...document.querySelectorAll('[data-reading-size-control]')].map(container => {
+    container.append(template.content.cloneNode(true));
+    return {
+      range: container.querySelector('input[type=range]'),
+      exact: container.querySelector('input[type=number]'),
+      steps: container.querySelectorAll('[data-size-step]'),
+    };
+  });
+  const min = Number(controls[0].range.min);
+  const max = Number(controls[0].range.max);
+  let currentSize;
 
-  function applySize(index) {
-    const {value, label} = sizes[index];
-    root.dataset.textSize = value;
-    sizeSetting.selectedIndex = index;
-    sizeRange.valueAsNumber = index;
-    sizeRange.setAttribute('aria-valuetext', label);
-    sizeValue.textContent = label;
-    sizeDown.setAttribute('aria-disabled', String(index === 0));
-    sizeUp.setAttribute('aria-disabled', String(index === lastSize));
+  function applySize(size, editingField) {
+    currentSize = size;
+    root.style.setProperty('--text-size', size + 'px');
+    for (const {range, exact, steps} of controls) {
+      range.valueAsNumber = size;
+      range.setAttribute('aria-valuetext', size + ' пикс.');
+      if (exact !== editingField) exact.valueAsNumber = size;
+      for (const button of steps) {
+        const next = size + Number(button.dataset.sizeStep);
+        button.setAttribute('aria-disabled', String(next < min || next > max));
+      }
+    }
   }
 
-  function setSize(index) {
-    if (!sizes[index]) return;
-    applySize(index);
-    savePreference('text-size', sizeSetting.value);
+  function setSize(size, editingField) {
+    applySize(Math.max(min, Math.min(max, Math.round(size))), editingField);
+    savePreference('text-size', String(currentSize));
   }
 
-  const savedSize = readPreference('text-size') ?? (readPreference('large-text') === 'true' ? 'large' : null);
-  const sizeIndex = sizes.findIndex(option => option.value === savedSize);
-  applySize(sizeIndex === -1 ? sizeSetting.selectedIndex : sizeIndex);
-  sizeSetting.addEventListener('change', () => setSize(sizeSetting.selectedIndex));
-  sizeRange.addEventListener('input', () => setSize(sizeRange.valueAsNumber));
-  sizeDown.addEventListener('click', () => setSize(sizeRange.valueAsNumber - 1));
-  sizeUp.addEventListener('click', () => setSize(sizeRange.valueAsNumber + 1));
+  const saved = readPreference('text-size');
+  let initialSize = Number(saved);
+  if (!Number.isInteger(initialSize) || initialSize < min || initialSize > max) {
+    // Match the previous responsive size at this viewport before switching to pixels.
+    root.dataset.textSize = saved ?? (readPreference('large-text') === 'true' ? 'large' : 'normal');
+    const probe = document.createElement('span');
+    probe.hidden = true;
+    probe.style.fontSize = 'var(--text-size)';
+    document.body.append(probe);
+    initialSize = Math.round(parseFloat(getComputedStyle(probe).fontSize));
+    probe.remove();
+    delete root.dataset.textSize;
+  }
+  applySize(initialSize);
 
+  for (const {range, exact, steps} of controls) {
+    function commitExactSize() {
+      const size = exact.valueAsNumber;
+      if (Number.isFinite(size)) setSize(size);
+      else exact.valueAsNumber = currentSize;
+    }
+
+    range.addEventListener('input', () => setSize(range.valueAsNumber));
+    exact.addEventListener('input', () => {
+      if (exact.validity.valid && Number.isFinite(exact.valueAsNumber)) setSize(exact.valueAsNumber, exact);
+    });
+    exact.addEventListener('change', commitExactSize);
+    exact.addEventListener('keydown', event => {
+      if (event.key === 'Enter') commitExactSize();
+    });
+    for (const button of steps) {
+      button.addEventListener('click', () => {
+        if (button.getAttribute('aria-disabled') !== 'true') setSize(currentSize + Number(button.dataset.sizeStep));
+      });
+    }
+  }
+}
+
+function setupReadingFont() {
+  const root = document.documentElement;
   const fontSetting = $('reading-font-setting');
+  const builtInFonts = [...fontSetting.options].filter(option => !option.disabled).map(option => option.value);
   const fontButtons = readingSettings.querySelectorAll('[data-reading-font-style]');
+  const localFontName = $('reading-local-font-name');
   const fontsByStyle = {serif: 'georgia', sans: 'system'};
+  const template = $('reading-font-template');
+  const forms = [...document.querySelectorAll('[data-reading-font-custom]')].map(container => {
+    container.append(template.content.cloneNode(true));
+    return container.querySelector('form');
+  });
 
   function applyFont(value) {
-    const style = value === 'georgia' || value === 'times' ? 'serif' : 'sans';
-    fontsByStyle[style] = value;
-    root.dataset.textFont = fontSetting.value = value;
+    let style;
+    if (value.startsWith('local:')) {
+      const name = value.slice('local:'.length);
+      root.style.setProperty('--text-font', '"' + CSS.escape(name) + '", var(--serif)');
+      root.dataset.textFont = fontSetting.value = 'local';
+      localFontName.textContent = ' · ' + name;
+      for (const form of forms) form.querySelector('input').value = name;
+    } else {
+      style = value === 'georgia' || value === 'times' ? 'serif' : 'sans';
+      fontsByStyle[style] = value;
+      root.style.removeProperty('--text-font');
+      root.dataset.textFont = fontSetting.value = value;
+      localFontName.textContent = '';
+    }
     for (const button of fontButtons) {
       button.setAttribute('aria-pressed', String(button.dataset.readingFontStyle === style));
     }
@@ -752,10 +808,29 @@ function setupReadingSettings() {
   }
 
   const savedFont = readPreference('text-font');
-  applyFont([...fontSetting.options].some(option => option.value === savedFont) ? savedFont : fontSetting.value);
+  const savedLocalFont = savedFont?.startsWith('local:') && savedFont.slice('local:'.length).trim();
+  applyFont(builtInFonts.includes(savedFont) || savedLocalFont ? savedFont : fontSetting.value);
   fontSetting.addEventListener('change', () => setFont(fontSetting.value));
   for (const button of fontButtons) {
     button.addEventListener('click', () => setFont(fontsByStyle[button.dataset.readingFontStyle]));
+  }
+  for (const form of forms) {
+    const field = form.querySelector('input');
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const name = field.value.trim();
+      if (!name) {
+        field.value = '';
+        field.reportValidity();
+        return;
+      }
+      setFont('local:' + name);
+      const disclosure = form.closest('details');
+      if (disclosure) {
+        disclosure.open = false;
+        disclosure.querySelector('summary').focus({preventScroll: true});
+      }
+    });
   }
 }
 
@@ -788,7 +863,8 @@ async function loadBookFile(file) {
 }
 
 async function start() {
-  setupReadingSettings();
+  setupReadingSize();
+  setupReadingFont();
   for (const {archive, keys, rights} of await openLocalEditions()) {
     for (const key of keys) localEditions.set(key, {archive, rights});
   }

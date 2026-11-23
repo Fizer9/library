@@ -100,16 +100,7 @@
               Тёмная тема
               <input id="theme-toggle" type="checkbox" data-theme-toggle>
             </label>
-            <label class="settings-row">
-              Размер текста
-              <select id="reading-size-setting">
-                <option value="small">Мелкий</option>
-                <option value="normal" selected>Обычный</option>
-                <option value="medium">Средний</option>
-                <option value="large">Крупный</option>
-                <option value="extra-large">Очень крупный</option>
-              </select>
-            </label>
+            <div class="settings-row reading-size-control" data-reading-size-control></div>
             <label class="settings-row">
               Шрифт
               <select id="reading-font-setting">
@@ -117,8 +108,10 @@
                 <option value="times">Times New Roman</option>
                 <option value="arial">Arial</option>
                 <option value="system">Системный</option>
+                <option value="local" disabled>Шрифт с устройства</option>
               </select>
             </label>
+            <div class="settings-row reading-font-custom" data-reading-font-custom></div>
             <div class="settings-row">
               <button id="sync-settings" class="button" type="button">Синхронизация GitHub</button>
             </div>
@@ -191,17 +184,11 @@
               </button>
             </div>
           </fieldset>
-          <div class="reading-size-control">
-            <div class="reading-size-heading">
-              <label for="reading-size">Размер текста</label>
-              <span id="reading-size-value"></span>
-            </div>
-            <div class="reading-size-inputs">
-              <button id="reading-size-down" class="button" type="button" aria-label="Уменьшить размер текста">−</button>
-              <input id="reading-size" type="range" min="0" step="1">
-              <button id="reading-size-up" class="button" type="button" aria-label="Увеличить размер текста">+</button>
-            </div>
-          </div>
+          <details class="reading-font-custom">
+            <summary>Другой шрифт<span id="reading-local-font-name"></span></summary>
+            <div data-reading-font-custom></div>
+          </details>
+          <div class="reading-size-control" data-reading-size-control></div>
           <label class="settings-row reading-theme-setting">
             Тёмная тема
             <input type="checkbox" data-theme-toggle>
@@ -298,5 +285,30 @@
       </div>
     </dialog>
   </main>
+  <template id="reading-size-template">
+    <div class="reading-size-heading">
+      <span>Размер текста</span>
+      <label class="reading-size-exact">
+        <span class="sr-only">Точный размер текста в пикселях</span>
+        <input type="number" min="8" max="96" step="1" inputmode="numeric">
+        <span aria-hidden="true">px</span>
+      </label>
+    </div>
+    <div class="reading-size-inputs">
+      <button class="button" type="button" data-size-step="-1" aria-label="Уменьшить размер текста">−</button>
+      <input type="range" min="8" max="96" step="1" aria-label="Размер текста">
+      <button class="button" type="button" data-size-step="1" aria-label="Увеличить размер текста">+</button>
+    </div>
+  </template>
+  <template id="reading-font-template">
+    <form class="reading-font-form">
+      <label>
+        Шрифт с устройства
+        <input type="text" placeholder="Например, Verdana" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+      </label>
+      <button class="button" type="submit">Применить</button>
+      <p>Введите название установленного шрифта.</p>
+    </form>
+  </template>
 </body>
 </html>

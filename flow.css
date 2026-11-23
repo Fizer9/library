@@ -144,10 +144,11 @@ body:has(#toc-dialog[open], #study-dialog[open], #reading-settings-dialog[open])
 .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 54px; padding-block: 8px; }
 .settings-row + .settings-row { border-top: 1px solid var(--line); }
 label.settings-row { cursor: pointer; }
-.settings-row input { flex: none; width: 1.2rem; height: 1.2rem; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.settings-row input[type=checkbox] { flex: none; width: 1.2rem; height: 1.2rem; margin: 0; accent-color: var(--accent); cursor: pointer; }
 .settings-row:has(select) { flex-wrap: wrap; }
 .settings-row select { min-height: 44px; max-width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); cursor: pointer; }
 .settings-row select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.settings-panel > :is(.reading-size-control, .reading-font-custom) { display: block; padding-block: 12px; }
 #offline-settings { flex-wrap: wrap; }
 #offline-status { color: var(--muted); font-size: .875rem; }
 .collection { color: var(--muted); font-weight: 650; font-size: .875rem; margin-bottom: 7px; }
@@ -276,12 +277,21 @@ label.settings-row { cursor: pointer; }
 .reading-font-sample { font: 400 1.55rem/1.15 var(--serif); }
 [data-reading-font-style=sans] .reading-font-sample { font-family: system-ui, sans-serif; }
 .reading-font-options [aria-pressed=true] .reading-font-sample { font-family: var(--text-font); }
+#reading-settings .reading-font-custom { margin-bottom: 14px; }
+#reading-settings .reading-font-custom summary { padding-block: 6px; color: var(--accent); overflow-wrap: anywhere; }
+#reading-settings .reading-font-custom[open] .reading-font-form { margin-top: 4px; }
+.reading-font-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px 8px; }
+.reading-font-form label { display: grid; gap: 4px; }
+.reading-font-form p { grid-column: 1 / -1; color: var(--muted); font-size: .875rem; }
+.reading-font-form input, .reading-size-exact input { width: 100%; min-height: 44px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); }
 .reading-size-heading { flex-wrap: wrap; }
-#reading-size-value { color: var(--muted); font-size: .875rem; }
+.reading-size-exact { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: .875rem; }
+.reading-size-exact input { appearance: textfield; width: 4.25rem; color: var(--ink); font-size: 1rem; }
+.reading-size-exact input::-webkit-inner-spin-button, .reading-size-exact input::-webkit-outer-spin-button { appearance: none; margin: 0; }
 .reading-size-inputs { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; margin-top: 6px; }
 .reading-size-inputs .button { font-size: 1.15rem; }
 .reading-size-inputs .button[aria-disabled=true] { color: var(--muted); background: var(--paper); opacity: .6; cursor: default; }
-#reading-size { width: 100%; height: 44px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.reading-size-inputs input[type=range] { width: 100%; height: 44px; margin: 0; accent-color: var(--accent); cursor: pointer; }
 .reading-theme-setting { margin-top: 12px; border-top: 1px solid var(--line); }
 #reading-settings-dialog { position: fixed; inset: auto 0 0; width: min(100%, 32rem); max-width: none; max-height: none; margin: 0 auto; padding: 0; border: 0; background: transparent; color: inherit; }
 #reading-settings-dialog::backdrop { background: color-mix(in srgb, var(--backdrop) 45%, transparent); }
