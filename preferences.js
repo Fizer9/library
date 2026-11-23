@@ -47,3 +47,33 @@ const readerTheme = (() => {
 
   return {get, set};
 })();
+
+(() => {
+  const root = document.documentElement;
+  const saved = Number(readPreference('interface-size'));
+  const size = saved >= 85 && saved <= 150 && saved % 5 === 0 ? saved : 100;
+
+  function apply(value) {
+    root.style.setProperty('--interface-scale', value / 100);
+  }
+
+  apply(size);
+  document.addEventListener('DOMContentLoaded', () => {
+    const slider = document.getElementById('interface-size');
+    const output = document.getElementById('interface-size-value');
+
+    function showValue() {
+      const label = slider.value + '%';
+      output.value = label;
+      slider.setAttribute('aria-valuetext', label);
+    }
+
+    slider.valueAsNumber = size;
+    showValue();
+    slider.addEventListener('input', () => {
+      apply(slider.valueAsNumber);
+      showValue();
+      savePreference('interface-size', slider.value);
+    });
+  });
+})();

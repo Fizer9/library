@@ -100,6 +100,13 @@
               Тёмная тема
               <input id="theme-toggle" type="checkbox" data-theme-toggle>
             </label>
+            <div class="settings-row interface-size-control">
+              <div class="size-control-heading">
+                <label for="interface-size">Размер интерфейса</label>
+                <output id="interface-size-value" for="interface-size" aria-hidden="true">100%</output>
+              </div>
+              <input id="interface-size" type="range" min="85" max="150" step="5" value="100">
+            </div>
             <div class="settings-row reading-size-control" data-reading-size-control></div>
             <label class="settings-row">
               Шрифт
@@ -286,7 +293,7 @@
     </dialog>
   </main>
   <template id="reading-size-template">
-    <div class="reading-size-heading">
+    <div class="size-control-heading">
       <span>Размер текста</span>
       <label class="reading-size-exact">
         <span class="sr-only">Точный размер текста в пикселях</span>
