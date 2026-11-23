@@ -1,6 +1,6 @@
 const scope = new URL(self.registration.scope);
 const cachePrefix = `potok:${scope.pathname}:`;
-const revision = '19c0815d87155597';
+const revision = '4b4a613fe2fd713c';
 const cacheName = `${cachePrefix}${revision}`;
 const home = new URL('index.html', scope).href;
 const assets = new Set([

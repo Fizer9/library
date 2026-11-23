@@ -91,8 +91,13 @@ button, summary { cursor: pointer; }
   border-top: 1px solid var(--line);
   background: var(--paper);
 }
-.main-nav a { display: grid; place-items: center; border-radius: 8px; color: var(--ink); font-size: .9rem; font-weight: 650; text-decoration: none; }
-.main-nav a:hover, .main-nav a[aria-current=page] { background: var(--tint); color: var(--accent); }
+.main-nav a { display: grid; place-items: center; border-radius: 8px; color: var(--ink); }
+.main-nav svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.main-nav a:hover { color: var(--accent); }
+.main-nav a[aria-current=page] { background: var(--tint); color: var(--accent); }
+@media (forced-colors: active) {
+  .main-nav a[aria-current=page] { border: 1px solid Highlight; }
+}
 #toc-toggle { justify-self: end; }
 #toc-toggle[aria-expanded=true] { background: var(--tint); }
 .jump-form { display: flex; min-width: 0; }
