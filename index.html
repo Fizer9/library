@@ -190,13 +190,16 @@
     <dialog id="sync-dialog" class="personal-dialog" aria-labelledby="sync-title">
       <h2 id="sync-title">Синхронизация GitHub</h2>
       <form id="sync-form" method="dialog">
-        <p>Укажи свой приватный репозиторий. Подключение объединит его записи с заметками и выделениями этого браузера.</p>
-        <label for="sync-repo">Репозиторий (владелец/название)</label>
-        <input id="sync-repo" placeholder="владелец/reader-notes" maxlength="140" required>
+        <p>Создай токен с правом <b>Contents → Read and write</b>. В GitHub выбери <b>Only select repositories</b> и отметь приватный репозиторий заметок.</p>
+        <a href="https://github.com/settings/personal-access-tokens/new?name=Reader+notes&amp;expires_in=90&amp;contents=write" target="_blank" rel="noopener noreferrer">Создать токен на GitHub</a>
         <label for="sync-token">Токен GitHub</label>
-        <input id="sync-token" type="password" autocomplete="off" required>
-        <p>Нужен fine-grained personal access token с доступом к этому репозиторию и правами Contents: Read and write. Токен сохранится в этом браузере.</p>
-        <button id="sync-connect" class="button primary" type="submit">Подключить</button>
+        <input id="sync-token" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+        <div id="sync-repo-picker" hidden>
+          <label for="sync-repo">Приватный репозиторий</label>
+          <select id="sync-repo" required disabled></select>
+          <p>Подключение объединит записи репозитория с заметками и выделениями этого браузера. Токен сохранится в этом браузере.</p>
+        </div>
+        <button id="sync-connect" class="button primary" type="submit">Найти репозитории</button>
       </form>
       <p id="sync-repository" hidden></p>
       <p id="sync-status" role="status" aria-live="polite"></p>

@@ -11,6 +11,9 @@
   const floatingMenu = matchMedia('(min-width: 801px) and (hover: hover) and (pointer: fine)');
   const settings = $('sync-dialog');
   const status = $('sync-status');
+  const syncToken = $('sync-token');
+  const repositorySelect = $('sync-repo');
+  const syncConnect = $('sync-connect');
   const editorStatus = $('annotation-status');
   const inputs = {
     style: $('annotation-style'),
@@ -30,6 +33,8 @@
   let selectedFragments;
   let connection;
   let activeSync;
+  let setupRequest;
+  let repositories = [];
   let syncTimer;
   let syncAgain = false;
 
@@ -353,16 +358,21 @@
     for (const id of ['sync-repository', 'sync-disconnect', 'sync-now']) $(id).hidden = !connection;
     $('sync-repository').textContent = connection?.repo ?? '';
     $('sync-now').disabled = Boolean(activeSync);
+    const choosingRepository = repositories.length > 0;
+    $('sync-repo-picker').hidden = !choosingRepository;
+    repositorySelect.disabled = !choosingRepository || Boolean(setupRequest);
+    syncConnect.textContent = choosingRepository ? 'Подключить' : 'Найти репозитории';
+    syncConnect.disabled = Boolean(setupRequest) || (choosingRepository && !repositorySelect.value);
   }
 
-  function githubRequest(config, path, options = {}) {
-    return fetch(`https://api.github.com/repos/${config.repo}${path}`, {
+  function githubRequest(token, path, options = {}) {
+    return fetch(`https://api.github.com${path}`, {
       ...options,
       redirect: 'error',
       cache: 'no-store',
       headers: {
         Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${config.token}`,
+        Authorization: `Bearer ${token}`,
         ...(options.body && {'Content-Type': 'application/json'}),
       },
     });
@@ -379,12 +389,34 @@
   }
 
   async function verifyPrivateRepository(config, signal) {
-    const response = await githubRequest(config, '', {signal});
+    const response = await githubRequest(config.token, `/repos/${config.repo}`, {signal});
     requireSuccess(response);
     const repository = await response.json();
     if (repository.private !== true || repository.visibility !== 'private') {
       throw new Error('Для синхронизации выбери приватный репозиторий.');
     }
+  }
+
+  async function findPrivateRepositories(token, signal) {
+    const available = new Map();
+    let page = 1;
+    let more;
+    do {
+      const response = await githubRequest(token, `/user/repos?visibility=private&per_page=100&page=${page}`, {signal});
+      if (response.status === 401) throw new Error('Токен GitHub недействителен или истёк. Вставь действующий токен.');
+      if (response.status === 403) throw new Error('GitHub не разрешил получить список. Проверь доступ токена к приватному репозиторию.');
+      requireSuccess(response);
+      for (const repository of await response.json()) {
+        const name = repository.full_name;
+        if (repository.private === true && repository.visibility === 'private' && !repository.archived &&
+            !repository.disabled && typeof name === 'string' && repositoryPattern.test(name)) {
+          available.set(name.toLowerCase(), name);
+        }
+      }
+      more = /rel="next"/.test(response.headers.get('Link') ?? '');
+      page++;
+    } while (more);
+    return [...available.values()].sort((a, b) => a.localeCompare(b));
   }
 
   function decodeRevisions(file) {
@@ -451,10 +483,10 @@
   }
 
   async function reconcile(config, signal) {
-    const path = '/contents/reader-annotations.json';
+    const path = `/repos/${config.repo}/contents/reader-annotations.json`;
     for (let attempt = 0; attempt < 3; attempt++) {
       await verifyPrivateRepository(config, signal);
-      const response = await githubRequest(config, path, {signal});
+      const response = await githubRequest(config.token, path, {signal});
       if (response.status !== 404) requireSuccess(response);
       const file = response.status === 404 ? null : await response.json();
       const remote = file ? decodeRevisions(file) : new Map();
@@ -465,7 +497,7 @@
       }
       if ([...local.keys()].every(id => remote.has(id))) return;
       for (const [id, revision] of local) remote.set(id, revision);
-      const result = await githubRequest(config, path, {
+      const result = await githubRequest(config.token, path, {
         method: 'PUT',
         signal,
         body: JSON.stringify({
@@ -520,31 +552,71 @@
     if (connection) syncTimer = setTimeout(synchronize, 800);
   }
 
-  $('sync-form').addEventListener('submit', async event => {
+  function resetSetup() {
+    setupRequest?.abort();
+    setupRequest = null;
+    repositories = [];
+    repositorySelect.replaceChildren();
+    renderSettings();
+  }
+
+  async function submitSyncSetup(event) {
     event.preventDefault();
-    const config = {repo: $('sync-repo').value.trim().toLowerCase(), token: $('sync-token').value.trim()};
-    if (!repositoryPattern.test(config.repo) || !config.token) {
-      status.textContent = 'Укажи репозиторий в формате владелец/название и введи токен.';
-      return;
-    }
-    const connect = $('sync-connect');
-    connect.disabled = true;
-    status.textContent = 'Проверка репозитория…';
+    if (setupRequest || connection) return;
+    const token = syncToken.value.trim();
+    if (!token) return;
+    const choosingRepository = repositories.length > 0;
+    const choice = repositorySelect.value;
+    if (choosingRepository && !repositories.includes(choice)) return;
+    const running = new AbortController();
+    setupRequest = running;
+    const signal = AbortSignal.any([running.signal, AbortSignal.timeout(15000)]);
+    status.textContent = choosingRepository ? 'Проверка репозитория…' : 'Поиск приватных репозиториев…';
+    renderSettings();
     try {
-      await verifyPrivateRepository(config, AbortSignal.timeout(15000));
+      if (!choosingRepository) {
+        const available = await findPrivateRepositories(token, signal);
+        signal.throwIfAborted();
+        if (!available.length) {
+          status.textContent = 'Приватные репозитории не найдены. Проверь, что при создании токена ты отметил приватный репозиторий заметок.';
+          return;
+        }
+        repositories = available;
+        repositorySelect.replaceChildren(...available.map(name => new Option(name, name)));
+        if (available.length > 1) repositorySelect.add(new Option('Выбери репозиторий', '', true, true), 0);
+        status.textContent = '';
+        return;
+      }
+      const config = {repo: choice.toLowerCase(), token};
+      await verifyPrivateRepository(config, signal);
+      signal.throwIfAborted();
       localStorage.setItem(connectionKey, JSON.stringify(config));
-      $('sync-token').value = '';
+      syncToken.value = '';
       connection = config;
+      resetSetup();
       void synchronize();
     } catch (error) {
+      if (setupRequest !== running) return;
       status.textContent = error instanceof TypeError || error.name === 'TimeoutError'
         ? 'Не удалось связаться с GitHub. Проверь подключение к интернету.'
         : error.message;
     } finally {
-      connect.disabled = false;
-      renderSettings();
+      if (setupRequest === running) {
+        setupRequest = null;
+        renderSettings();
+        if (!choosingRepository && repositories.length) {
+          (repositories.length === 1 ? syncConnect : repositorySelect).focus();
+        }
+      }
     }
+  }
+
+  $('sync-form').addEventListener('submit', submitSyncSetup);
+  syncToken.addEventListener('input', () => {
+    resetSetup();
+    status.textContent = '';
   });
+  repositorySelect.addEventListener('change', renderSettings);
 
   $('sync-disconnect').addEventListener('click', () => {
     localStorage.removeItem(connectionKey);
@@ -556,8 +628,9 @@
     activeSync = null;
     syncAgain = false;
     connection = config;
+    syncToken.value = '';
+    resetSetup();
     status.textContent = connection ? '' : 'GitHub отключён. Записи сохранены в этом браузере.';
-    renderSettings();
     scheduleSync();
   }
 
@@ -628,6 +701,12 @@
     settings.showModal();
   });
   $('sync-close').addEventListener('click', () => settings.close());
+  settings.addEventListener('close', () => {
+    if (connection) return;
+    syncToken.value = '';
+    resetSetup();
+    status.textContent = '';
+  });
   $('sync-now').addEventListener('click', () => void synchronize());
   addEventListener('online', scheduleSync);
   addEventListener('offline', () => {

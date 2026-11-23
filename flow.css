@@ -195,6 +195,7 @@ body:has(.personal-dialog[open]) { overflow: hidden; }
 .personal-dialog details li { white-space: pre-wrap; }
 .personal-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 #sync-dialog > p { margin-top: 8px; }
+#sync-repo-picker { display: grid; gap: 8px; }
 #annotation-dialog { inset: 12px 12px 12px auto; margin: auto 0; }
 #annotation-quote { margin: 0; max-height: 7em; overflow: auto; padding: 6px 10px; border-inline-start: 2px solid var(--line); color: var(--muted); font: 1rem/1.5 var(--serif); }
 #notes-dialog { width: min(630px, calc(100% - 24px)); }
