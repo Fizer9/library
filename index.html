@@ -7,6 +7,7 @@
   <meta name="color-scheme" content="light">
   <meta name="theme-color" content="#f6eee4">
   <title>Писания</title>
+  <script src="preferences.js"></script>
   <link rel="stylesheet" href="flow.css">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon-192.png?v=liahona" type="image/png" sizes="192x192">
@@ -28,7 +29,10 @@
         <input type="search" id="jump-input" placeholder="Например, Ин. 3:16" required>
         <button type="submit">Перейти</button>
       </form>
-      <button class="button" id="toc-toggle" type="button" aria-controls="toc-panel" aria-expanded="false">Оглавление</button>
+      <div class="topbar-actions">
+        <button class="button" id="theme-toggle" type="button" aria-label="Тёмная тема" aria-pressed="false" title="Тёмная тема"><span aria-hidden="true"></span></button>
+        <button class="button" id="toc-toggle" type="button" aria-controls="toc-panel" aria-expanded="false">Оглавление</button>
+      </div>
     </div>
   </header>
   <main>
@@ -197,7 +201,7 @@
         <div id="sync-repo-picker" hidden>
           <label for="sync-repo">Приватный репозиторий</label>
           <select id="sync-repo" required disabled></select>
-          <p>Подключение объединит записи репозитория с заметками и выделениями этого браузера. Токен сохранится в этом браузере.</p>
+          <p>GitHub объединит заметки и выделения из репозитория и этого браузера. Тема сохранится отдельно для этого браузера. Токен сохранится в браузере.</p>
         </div>
         <button id="sync-connect" class="button primary" type="submit">Найти репозитории</button>
       </form>

@@ -31,14 +31,6 @@ let desktopTocOpen;
 let currentTocChapter;
 let activeStudyButton;
 
-function readPreference(key) {
-  try { return localStorage.getItem(`scriptures-flow:${key}`); } catch { return null; }
-}
-
-function savePreference(key, value) {
-  try { localStorage.setItem(`scriptures-flow:${key}`, value); } catch { /* Used in a browser without persistent storage. */ }
-}
-
 function chapterCount(edition, book) {
   return edition === 'bible' ? Object.keys(bibleData[book.id] ?? {}).length : book.count;
 }

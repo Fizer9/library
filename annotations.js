@@ -482,10 +482,10 @@
     return btoa(binary);
   }
 
-  async function reconcile(config, signal) {
+  async function reconcileAnnotations(config, signal) {
     const path = `/repos/${config.repo}/contents/reader-annotations.json`;
     for (let attempt = 0; attempt < 3; attempt++) {
-      await verifyPrivateRepository(config, signal);
+      if (attempt) await verifyPrivateRepository(config, signal);
       const response = await githubRequest(config.token, path, {signal});
       if (response.status !== 404) requireSuccess(response);
       const file = response.status === 404 ? null : await response.json();
@@ -511,6 +511,65 @@
       return;
     }
     throw new Error('Другое устройство обновляет записи. Читалка попробует синхронизировать их снова.');
+  }
+
+  function decodeTheme(file) {
+    try {
+      if (file.encoding !== 'base64') throw new Error();
+      const {version, theme} = JSON.parse(atob(file.content));
+      if (version !== 1 || !['light', 'dark'].includes(theme)) throw new Error();
+      return theme;
+    } catch {
+      throw new Error('Не удалось прочитать настройку темы в GitHub.');
+    }
+  }
+
+  async function reconcileTheme(config, signal) {
+    let device = readPreference('theme-device');
+    if (!revisionId.test(device ?? '')) {
+      if (!readerTheme.get()) return;
+      savePreference('theme-device', crypto.randomUUID());
+      device = readPreference('theme-device');
+      if (!revisionId.test(device ?? '')) return;
+    }
+    const path = `/repos/${config.repo}/contents/reader-settings/${device}.json`;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt) await verifyPrivateRepository(config, signal);
+      const response = await githubRequest(config.token, path, {signal});
+      if (response.status !== 404) requireSuccess(response);
+      const file = response.status === 404 ? null : await response.json();
+      const remote = file ? decodeTheme(file) : null;
+      signal.throwIfAborted();
+      if (readPreference('theme-device') !== device) return;
+      const local = readerTheme.get();
+      if (!local) {
+        if (remote) readerTheme.set(remote);
+        return;
+      }
+      if (local === remote) return;
+      const result = await githubRequest(config.token, path, {
+        method: 'PUT',
+        signal,
+        body: JSON.stringify({
+          message: 'Sync reader theme',
+          content: btoa(JSON.stringify({version: 1, theme: local})),
+          ...(file && {sha: file.sha}),
+        }),
+      });
+      if (result.status === 409 || result.status === 422 && !file) continue;
+      requireSuccess(result);
+      return;
+    }
+    throw new Error('Тема обновляется в GitHub. Читалка попробует синхронизировать её снова.');
+  }
+
+  async function reconcile(config, signal) {
+    await verifyPrivateRepository(config, signal);
+    try {
+      await reconcileTheme(config, signal);
+    } finally {
+      await reconcileAnnotations(config, signal);
+    }
   }
 
   async function synchronize() {
@@ -708,6 +767,7 @@
     status.textContent = '';
   });
   $('sync-now').addEventListener('click', () => void synchronize());
+  addEventListener('reader-theme-change', scheduleSync);
   addEventListener('online', scheduleSync);
   addEventListener('offline', () => {
     if (connection) status.textContent = 'Нет интернета. Записи хранятся в этом браузере.';
