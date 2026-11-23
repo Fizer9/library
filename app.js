@@ -19,8 +19,8 @@ const studyClose = $('study-close');
 const tocChapters = new Map();
 const tocEditions = new Map();
 const localEditions = new Map();
-const fontToggle = $('font-toggle');
-const largeTextSetting = $('large-text-setting');
+const readingSettings = $('reading-settings');
+const readingSettingsToggle = $('reading-settings-toggle');
 const jumpForm = $('jump-form');
 const bookFile = $('book-file');
 const openBookFile = $('open-book-file');
@@ -570,6 +570,7 @@ function showUnavailable(place, message, allowFile = false) {
 async function render() {
   const version = ++rendering;
   closeStudyNote(false);
+  showReadingSettings(false);
   clearTimeout(scrollTimer);
   restoredScrollY = null;
   $('jump-error').hidden = true;
@@ -636,11 +637,37 @@ async function render() {
   }
 }
 
-function updateFont(large) {
-  document.documentElement.dataset.textSize = large ? 'large' : 'normal';
-  fontToggle.setAttribute('aria-pressed', String(large));
-  largeTextSetting.checked = large;
-  savePreference('large-text', String(large));
+function showReadingSettings(open) {
+  readingSettings.hidden = !open;
+  readingSettingsToggle.setAttribute('aria-expanded', String(open));
+}
+
+function setupReadingSettings() {
+  const template = $('reading-settings-template');
+  readingSettings.append(template.content.cloneNode(true));
+  template.replaceWith(template.content);
+
+  for (const setting of settings.querySelectorAll('[data-reading-preference]')) {
+    const key = setting.dataset.readingPreference;
+    const chapterSetting = readingSettings.querySelector(`[data-reading-preference="${key}"]`);
+    const saved = readPreference(key);
+    const legacyLarge = key === 'text-size' && readPreference('large-text') === 'true';
+    const initial = saved ?? (legacyLarge ? 'large' : setting.value);
+
+    const apply = value => {
+      document.documentElement.setAttribute(`data-${key}`, value);
+      setting.value = chapterSetting.value = value;
+    };
+    apply([...setting.options].some(option => option.value === initial) ? initial : setting.value);
+
+    for (const select of [setting, chapterSetting]) {
+      select.addEventListener('change', () => {
+        const {value} = select;
+        apply(value);
+        savePreference(key, value);
+      });
+    }
+  }
 }
 
 function reportBookFile(message, error = false) {
@@ -672,7 +699,7 @@ async function loadBookFile(file) {
 }
 
 async function start() {
-  updateFont(readPreference('large-text') === 'true');
+  setupReadingSettings();
   for (const {archive, keys, rights} of await openLocalEditions()) {
     for (const key of keys) localEditions.set(key, {archive, rights});
   }
@@ -712,8 +739,7 @@ addEventListener('keydown', event => {
 tocContent.addEventListener('click', event => {
   if (tocDialog.open && event.target.closest('a') && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) tocDialog.close();
 });
-fontToggle.addEventListener('click', () => updateFont(!largeTextSetting.checked));
-largeTextSetting.addEventListener('change', () => updateFont(largeTextSetting.checked));
+readingSettingsToggle.addEventListener('click', () => showReadingSettings(readingSettings.hidden));
 openBookFile.addEventListener('click', () => bookFile.click());
 bookFile.addEventListener('change', () => {
   const file = bookFile.files[0];

@@ -89,10 +89,27 @@
               Тёмная тема
               <input id="theme-toggle" type="checkbox">
             </label>
-            <label class="settings-row">
-              Крупный текст
-              <input id="large-text-setting" type="checkbox">
-            </label>
+            <template id="reading-settings-template">
+              <label class="settings-row">
+                Размер текста
+                <select data-reading-preference="text-size">
+                  <option value="small">Мелкий</option>
+                  <option value="normal" selected>Обычный</option>
+                  <option value="medium">Средний</option>
+                  <option value="large">Крупный</option>
+                  <option value="extra-large">Очень крупный</option>
+                </select>
+              </label>
+              <label class="settings-row">
+                Шрифт
+                <select data-reading-preference="text-font">
+                  <option value="georgia">Georgia</option>
+                  <option value="times">Times New Roman</option>
+                  <option value="arial">Arial</option>
+                  <option value="system">Системный</option>
+                </select>
+              </label>
+            </template>
             <div class="settings-row">
               <button id="sync-settings" class="button" type="button">Синхронизация GitHub</button>
             </div>
@@ -114,8 +131,9 @@
               </div>
               <div class="reader-actions">
                 <button class="button" type="button" data-open-notes>Заметки</button>
-                <button id="font-toggle" type="button" aria-label="Крупный текст" aria-pressed="false">Аа</button>
+                <button id="reading-settings-toggle" class="button" type="button" aria-label="Настройки текста" aria-controls="reading-settings" aria-expanded="false">Аа</button>
               </div>
+              <div id="reading-settings" class="settings-panel" role="group" aria-label="Настройки текста" hidden></div>
             </header>
             <article id="passage" aria-labelledby="reader-title" aria-busy="false"></article>
             <div id="selection-actions" role="group" aria-label="Действия с выбранным текстом" hidden>
