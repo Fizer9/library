@@ -37,6 +37,9 @@
   let repositories = [];
   let syncTimer;
   let syncAgain = false;
+  const reconcileAnnotations = createAnnotationSync({
+    githubRequest, requireSuccess, verifyPrivateRepository, localRevisions, rememberRevisions, revisionId,
+  });
 
   function loadConnection() {
     try {
@@ -55,6 +58,13 @@
       if (revision) revisions.set(revision.id, revision);
     }
     return revisions;
+  }
+
+  function rememberRevisions(revisions) {
+    for (const [id, revision] of revisions) {
+      const key = revisionPrefix + id;
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(revision));
+    }
   }
 
   function currentAnnotations() {
@@ -396,6 +406,7 @@
     if (repository.private !== true || repository.visibility !== 'private') {
       throw new Error('Для синхронизации выбери приватный репозиторий.');
     }
+    return repository;
   }
 
   async function findPrivateRepositories(token, signal) {
@@ -418,100 +429,6 @@
       page++;
     } while (more);
     return [...available.values()].sort((a, b) => a.localeCompare(b));
-  }
-
-  function decodeRevisions(file) {
-    try {
-      if (file.encoding !== 'base64') throw new Error();
-      const bytes = Uint8Array.from(atob(file.content), char => char.charCodeAt(0));
-      const {version, revisions} = JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(bytes));
-      if (![1, 2].includes(version) || !Array.isArray(revisions)) throw new Error();
-      const byId = new Map();
-      const entries = new Map();
-      for (const revision of revisions) {
-        const {id, entry, place, field, value, parents, updated} = revision;
-        const legacyField = field === 'note' || field === 'highlight';
-        if (typeof id !== 'string' || !revisionId.test(id) || byId.has(id) ||
-            typeof place !== 'string' || !parseRoute(place) ||
-            (entry !== undefined && (typeof entry !== 'string' || !revisionId.test(entry))) ||
-            (updated !== undefined && (!Number.isSafeInteger(updated) || updated < 0)) ||
-            !Array.isArray(parents) || parents.some(parent => typeof parent !== 'string' || !revisionId.test(parent) || parent === id) ||
-            (version === 1 && (entry !== undefined || !legacyField)) ||
-            !validField(field, value, place, entry)) throw new Error();
-        if (entry) {
-          const info = entries.get(entry) ?? {place, hasAnchor: false};
-          if (info.place !== place) throw new Error();
-          info.hasAnchor ||= field === 'anchor';
-          entries.set(entry, info);
-        }
-        byId.set(id, revision);
-      }
-      if ([...entries.values()].some(entry => !entry.hasAnchor)) throw new Error();
-      for (const {parents, place, field, entry} of revisions) {
-        for (const id of parents) {
-          const parent = byId.get(id);
-          if (parent?.place !== place || parent.field !== field || parent.entry !== entry) throw new Error();
-        }
-      }
-      return byId;
-    } catch {
-      throw new Error('Файл заметок в GitHub повреждён или имеет неподдерживаемый формат.');
-    }
-  }
-
-  function validField(field, value, place, entry) {
-    switch (field) {
-      case 'anchor': return entry !== undefined && annotationText.validFragments(value, place);
-      case 'highlight': return entry === undefined && typeof value === 'boolean';
-      case 'style': return typeof value === 'string' && /^(?:none|(?:fill|line)-(?:yellow|green|blue|rose))$/.test(value);
-      case 'title': return typeof value === 'string' && value.length <= 180;
-      case 'note': return typeof value === 'string' && value.length <= 10000;
-      case 'tags':
-      case 'notebooks': return typeof value === 'string' && value.length <= 400;
-      default: return false;
-    }
-  }
-
-  function encodeRevisions(revisions) {
-    const values = [...revisions.values()];
-    const version = values.some(({entry, field}) => entry || !['note', 'highlight'].includes(field)) ? 2 : 1;
-    const json = JSON.stringify({version, revisions: values});
-    const bytes = new TextEncoder().encode(json);
-    if (bytes.length > 1_000_000) throw new Error('Файл заметок достиг предела синхронизации (1 МБ).');
-    let binary = '';
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary);
-  }
-
-  async function reconcileAnnotations(config, signal) {
-    const path = `/repos/${config.repo}/contents/reader-annotations.json`;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt) await verifyPrivateRepository(config, signal);
-      const response = await githubRequest(config.token, path, {signal});
-      if (response.status !== 404) requireSuccess(response);
-      const file = response.status === 404 ? null : await response.json();
-      const remote = file ? decodeRevisions(file) : new Map();
-      signal.throwIfAborted();
-      const local = localRevisions();
-      for (const [id, revision] of remote) {
-        if (!local.has(id)) localStorage.setItem(revisionPrefix + id, JSON.stringify(revision));
-      }
-      if ([...local.keys()].every(id => remote.has(id))) return;
-      for (const [id, revision] of local) remote.set(id, revision);
-      const result = await githubRequest(config.token, path, {
-        method: 'PUT',
-        signal,
-        body: JSON.stringify({
-          message: 'Sync reader annotations',
-          content: encodeRevisions(remote),
-          ...(file && {sha: file.sha}),
-        }),
-      });
-      if (result.status === 409 || result.status === 422 && !file) continue;
-      requireSuccess(result);
-      return;
-    }
-    throw new Error('Другое устройство обновляет записи. Читалка попробует синхронизировать их снова.');
   }
 
   function decodeTheme(file) {
@@ -565,11 +482,11 @@
   }
 
   async function reconcile(config, signal) {
-    await verifyPrivateRepository(config, signal);
+    const repository = await verifyPrivateRepository(config, signal);
     try {
       await reconcileTheme(config, signal);
     } finally {
-      await reconcileAnnotations(config, signal);
+      await reconcileAnnotations(config, repository, signal);
     }
   }
 
