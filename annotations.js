@@ -309,8 +309,9 @@
     const viewport = document.documentElement;
     const gutter = 8;
     const header = document.querySelector('.topbar').getBoundingClientRect().bottom + gutter;
-    const bottom = viewport.clientHeight - height - gutter;
-    if (rect.bottom <= header || rect.top >= viewport.clientHeight) {
+    const navigationTop = document.querySelector('.main-nav').getBoundingClientRect().top;
+    const bottom = Math.max(header, navigationTop - height - gutter);
+    if (rect.bottom <= header || rect.top >= navigationTop) {
       selectionActions.style.setProperty('--selection-top', `${bottom}px`);
       return;
     }

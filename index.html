@@ -23,13 +23,7 @@
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <div class="topbar-start">
-        <a class="brand" href="#library"><img class="brand-mark" src="icon-192.png?v=liahona" width="32" height="32" alt="">Писания</a>
-        <nav class="main-nav" aria-label="Основная навигация">
-          <a id="home-link" href="#library">Главная</a>
-          <a id="settings-link" href="#settings">Настройки</a>
-        </nav>
-      </div>
+      <a class="brand" href="#library"><img class="brand-mark" src="icon-192.png?v=liahona" width="32" height="32" alt="">Писания</a>
       <form id="jump-form" class="jump-form" role="search">
         <label class="sr-only" for="jump-input">Книга, глава и стих</label>
         <input type="search" id="jump-input" placeholder="Например, Ин. 3:16" required>
@@ -38,6 +32,10 @@
       <button class="button" id="toc-toggle" type="button" aria-controls="toc-panel" aria-expanded="false">Оглавление</button>
     </div>
   </header>
+  <nav class="main-nav" aria-label="Основная навигация">
+    <a id="home-link" href="#library">Главная</a>
+    <a id="settings-link" href="#settings">Настройки</a>
+  </nav>
   <main>
     <div class="page-layout">
       <aside id="toc-sidebar" hidden>
