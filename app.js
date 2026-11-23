@@ -20,6 +20,9 @@ const tocEditions = new Map();
 const localEditions = new Map();
 const readingSettings = $('reading-settings');
 const readingSettingsToggle = $('reading-settings-toggle');
+const readingSettingsSidebar = $('reading-settings-sidebar');
+const readingSettingsDialog = $('reading-settings-dialog');
+const readingSettingsClose = $('reading-settings-close');
 const jumpForm = $('jump-form');
 const bookFile = $('book-file');
 const openBookFile = $('open-book-file');
@@ -470,6 +473,7 @@ function createStudyPreview(place, origin) {
 function openStudyNote(button, note, place, verse) {
   if (button === activeStudyButton) { closeStudyNote(); return; }
   const top = button.getBoundingClientRect().top;
+  showReadingSettings(false);
   activeStudyButton?.setAttribute('aria-expanded', 'false');
   activeStudyButton = button;
   button.setAttribute('aria-expanded', 'true');
@@ -676,35 +680,82 @@ async function render() {
 }
 
 function showReadingSettings(open) {
-  readingSettings.hidden = !open;
+  const narrow = studyNarrow.matches;
+  const showDialog = open && narrow;
+  const container = narrow ? readingSettingsDialog : readingSettingsSidebar;
+  if (readingSettingsDialog.open && !showDialog) readingSettingsDialog.close();
+  if (readingSettings.parentElement !== container) container.append(readingSettings);
+  readingSettingsSidebar.hidden = !open || narrow;
+  if (showDialog && !readingSettingsDialog.open) readingSettingsDialog.showModal();
   readingSettingsToggle.setAttribute('aria-expanded', String(open));
+  if (narrow) readingSettingsToggle.setAttribute('aria-haspopup', 'dialog');
+  else readingSettingsToggle.removeAttribute('aria-haspopup');
+}
+
+function closeReadingSettings() {
+  showReadingSettings(false);
+  readingSettingsToggle.focus({preventScroll: true});
 }
 
 function setupReadingSettings() {
-  const template = $('reading-settings-template');
-  readingSettings.append(template.content.cloneNode(true));
-  template.replaceWith(template.content);
+  const root = document.documentElement;
+  const sizeSetting = $('reading-size-setting');
+  const sizeRange = $('reading-size');
+  const sizeValue = $('reading-size-value');
+  const sizeDown = $('reading-size-down');
+  const sizeUp = $('reading-size-up');
+  const sizes = [...sizeSetting.options];
+  const lastSize = sizes.length - 1;
+  sizeRange.max = lastSize;
 
-  for (const setting of settings.querySelectorAll('[data-reading-preference]')) {
-    const key = setting.dataset.readingPreference;
-    const chapterSetting = readingSettings.querySelector(`[data-reading-preference="${key}"]`);
-    const saved = readPreference(key);
-    const legacyLarge = key === 'text-size' && readPreference('large-text') === 'true';
-    const initial = saved ?? (legacyLarge ? 'large' : setting.value);
+  function applySize(index) {
+    const {value, label} = sizes[index];
+    root.dataset.textSize = value;
+    sizeSetting.selectedIndex = index;
+    sizeRange.valueAsNumber = index;
+    sizeRange.setAttribute('aria-valuetext', label);
+    sizeValue.textContent = label;
+    sizeDown.setAttribute('aria-disabled', String(index === 0));
+    sizeUp.setAttribute('aria-disabled', String(index === lastSize));
+  }
 
-    const apply = value => {
-      document.documentElement.setAttribute(`data-${key}`, value);
-      setting.value = chapterSetting.value = value;
-    };
-    apply([...setting.options].some(option => option.value === initial) ? initial : setting.value);
+  function setSize(index) {
+    if (!sizes[index]) return;
+    applySize(index);
+    savePreference('text-size', sizeSetting.value);
+  }
 
-    for (const select of [setting, chapterSetting]) {
-      select.addEventListener('change', () => {
-        const {value} = select;
-        apply(value);
-        savePreference(key, value);
-      });
+  const savedSize = readPreference('text-size') ?? (readPreference('large-text') === 'true' ? 'large' : null);
+  const sizeIndex = sizes.findIndex(option => option.value === savedSize);
+  applySize(sizeIndex === -1 ? sizeSetting.selectedIndex : sizeIndex);
+  sizeSetting.addEventListener('change', () => setSize(sizeSetting.selectedIndex));
+  sizeRange.addEventListener('input', () => setSize(sizeRange.valueAsNumber));
+  sizeDown.addEventListener('click', () => setSize(sizeRange.valueAsNumber - 1));
+  sizeUp.addEventListener('click', () => setSize(sizeRange.valueAsNumber + 1));
+
+  const fontSetting = $('reading-font-setting');
+  const fontButtons = readingSettings.querySelectorAll('[data-reading-font-style]');
+  const fontsByStyle = {serif: 'georgia', sans: 'system'};
+
+  function applyFont(value) {
+    const style = value === 'georgia' || value === 'times' ? 'serif' : 'sans';
+    fontsByStyle[style] = value;
+    root.dataset.textFont = fontSetting.value = value;
+    for (const button of fontButtons) {
+      button.setAttribute('aria-pressed', String(button.dataset.readingFontStyle === style));
     }
+  }
+
+  function setFont(value) {
+    applyFont(value);
+    savePreference('text-font', value);
+  }
+
+  const savedFont = readPreference('text-font');
+  applyFont([...fontSetting.options].some(option => option.value === savedFont) ? savedFont : fontSetting.value);
+  fontSetting.addEventListener('change', () => setFont(fontSetting.value));
+  for (const button of fontButtons) {
+    button.addEventListener('click', () => setFont(fontsByStyle[button.dataset.readingFontStyle]));
   }
 }
 
@@ -841,7 +892,9 @@ studyDialog.addEventListener('cancel', event => {
 });
 studyNarrow.addEventListener('change', syncStudyPanel);
 addEventListener('keydown', event => {
-  if (event.key === 'Escape' && activeStudyButton && !studyDialog.open) closeStudyNote();
+  if (event.key !== 'Escape') return;
+  if (!readingSettingsSidebar.hidden) closeReadingSettings();
+  else if (activeStudyButton && !studyDialog.open) closeStudyNote();
 });
 tocContent.addEventListener('click', event => {
   const anchor = event.target.closest('a');
@@ -864,7 +917,28 @@ tocContent.addEventListener('click', event => {
     tocContent.querySelector(`a[href="#contents/${edition}/${lastBook}"]`)?.focus();
   }
 });
-readingSettingsToggle.addEventListener('click', () => showReadingSettings(readingSettings.hidden));
+readingSettingsToggle.addEventListener('click', () => {
+  if (readingSettingsToggle.getAttribute('aria-expanded') === 'true') {
+    closeReadingSettings();
+    return;
+  }
+  closeStudyNote(false);
+  showReadingSettings(true);
+  readingSettingsClose.focus({preventScroll: true});
+});
+readingSettingsClose.addEventListener('click', closeReadingSettings);
+readingSettingsDialog.addEventListener('cancel', event => {
+  event.preventDefault();
+  closeReadingSettings();
+});
+readingSettingsDialog.addEventListener('click', event => {
+  if (event.target === readingSettingsDialog) closeReadingSettings();
+});
+studyNarrow.addEventListener('change', () => {
+  const focused = document.activeElement;
+  showReadingSettings(readingSettingsToggle.getAttribute('aria-expanded') === 'true');
+  if (readingSettings.contains(focused)) focused.focus({preventScroll: true});
+});
 openBookFile.addEventListener('click', () => bookFile.click());
 bookFile.addEventListener('change', () => {
   const file = bookFile.files[0];

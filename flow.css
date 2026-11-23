@@ -110,9 +110,9 @@ button, summary { cursor: pointer; }
 main { max-width: 1100px; margin: auto; padding: 32px 22px calc(48px + var(--bottom-nav-height)); }
 .page-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
 .page-layout:has(> #toc-sidebar:not([hidden])) { grid-template-columns: minmax(225px, 265px) minmax(0, 1fr); }
-main:has(#study-sidebar:not([hidden])) { max-width: 1440px; }
-.page-layout:has(> #study-sidebar:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); }
-.page-layout:has(> #toc-sidebar:not([hidden])):has(> #study-sidebar:not([hidden])) {
+main:has(:is(#study-sidebar, #reading-settings-sidebar):not([hidden])) { max-width: 1440px; }
+.page-layout:has(> :is(#study-sidebar, #reading-settings-sidebar):not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); }
+.page-layout:has(> #toc-sidebar:not([hidden])):has(> :is(#study-sidebar, #reading-settings-sidebar):not([hidden])) {
   grid-template-columns: minmax(175px, 220px) minmax(0, 1fr) minmax(280px, 340px);
 }
 .page-content { min-width: 0; }
@@ -137,7 +137,7 @@ main:has(#study-sidebar:not([hidden])) { max-width: 1440px; }
 #toc-dialog { position: fixed; inset: 0 auto 0 0; margin: 0; padding: 0; border: 0; width: min(360px, calc(100vw - 24px)); max-width: none; height: 100dvh; max-height: none; background: transparent; color: inherit; }
 #toc-dialog .toc-panel { height: 100%; max-height: none; border-radius: 0 15px 15px 0; }
 #toc-dialog::backdrop, #study-dialog::backdrop, .personal-dialog::backdrop { background: var(--backdrop); }
-body:has(#toc-dialog[open], #study-dialog[open]) { overflow: hidden; }
+body:has(#toc-dialog[open], #study-dialog[open], #reading-settings-dialog[open]) { overflow: hidden; }
 .page-heading h1 { font: 400 clamp(2.2rem, 5vw, 3.65rem)/1.08 var(--serif); letter-spacing: -.04em; overflow-wrap: anywhere; }
 .page-heading h1:focus { outline: none; }
 .settings-panel { max-width: 38rem; margin-top: 16px; padding-inline: 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
@@ -256,7 +256,39 @@ label.settings-row { cursor: pointer; }
 .reader-shell { max-width: 47rem; margin-inline: auto; }
 .reader-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; padding-bottom: 15px; border-bottom: 1px solid var(--line); }
 #reading-settings-toggle { min-width: 44px; }
-#reading-settings { grid-column: 1 / -1; justify-self: end; width: min(100%, 24rem); margin-top: 0; }
+#reading-settings {
+  max-height: calc(100dvh - 94px - var(--bottom-nav-height));
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+}
+.reading-settings-header, .reading-size-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.reading-settings-header h2 { font-size: 1.05rem; }
+#reading-settings-close { flex: none; width: 44px; padding: 0; font-size: 1.45rem; line-height: 1; }
+.reading-font { min-inline-size: 0; margin: 6px 0 14px; padding: 0; border: 0; }
+.reading-font legend { margin-bottom: 6px; padding: 0; }
+.reading-font-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.reading-font-options .button { display: grid; justify-items: center; align-content: center; padding: 6px; text-align: center; color: var(--ink); }
+.reading-font-options .button[aria-pressed=true] { border-color: var(--accent); background: var(--tint); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.reading-font-sample { font: 400 1.55rem/1.15 var(--serif); }
+[data-reading-font-style=sans] .reading-font-sample { font-family: system-ui, sans-serif; }
+.reading-font-options [aria-pressed=true] .reading-font-sample { font-family: var(--text-font); }
+.reading-size-heading { flex-wrap: wrap; }
+#reading-size-value { color: var(--muted); font-size: .875rem; }
+.reading-size-inputs { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; margin-top: 6px; }
+.reading-size-inputs .button { font-size: 1.15rem; }
+.reading-size-inputs .button[aria-disabled=true] { color: var(--muted); background: var(--paper); opacity: .6; cursor: default; }
+#reading-size { width: 100%; height: 44px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.reading-theme-setting { margin-top: 12px; border-top: 1px solid var(--line); }
+#reading-settings-dialog { position: fixed; inset: auto 0 0; width: min(100%, 32rem); max-width: none; max-height: none; margin: 0 auto; padding: 0; border: 0; background: transparent; color: inherit; }
+#reading-settings-dialog::backdrop { background: color-mix(in srgb, var(--backdrop) 45%, transparent); }
+#reading-settings-dialog #reading-settings { max-height: 75dvh; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); border-radius: 16px 16px 0 0; }
+@media (forced-colors: active) {
+  .reading-font-options .button[aria-pressed=true] { border-color: Highlight; outline: 1px solid Highlight; }
+}
 #passage { padding: 13px 0 16px; }
 .verse, .section-paragraph, .chapter-preface { font: var(--text-size)/1.6 var(--text-font); }
 .verse { display: grid; grid-template-columns: 2rem minmax(0,1fr); align-items: baseline; gap: 8px; padding: 6px 8px 6px 4px; border-radius: 6px; scroll-margin: 14px; overflow-wrap: anywhere; }
@@ -315,7 +347,7 @@ body:has(.personal-dialog[open]) { overflow: hidden; }
 .study-note-word:hover, .study-note-word[aria-expanded=true] { background: var(--tint); }
 .study-note-word sup { margin-inline-start: .14em; font-size: .63em; line-height: 0; }
 .study-note-verse { margin-inline-start: 3px; padding: 2px 5px; font: 600 .78rem/1.3 'Segoe UI', system-ui, sans-serif; white-space: nowrap; }
-#study-sidebar { position: sticky; top: 86px; min-width: 0; }
+#study-sidebar, #reading-settings-sidebar { position: sticky; top: 86px; min-width: 0; }
 .study-note { display: flex; flex-direction: column; max-height: calc(100dvh - 94px - var(--bottom-nav-height)); background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
 .study-note > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 13px; border-bottom: 1px solid var(--line); }
 .study-note h2 { font-size: 1rem; overflow-wrap: anywhere; }

@@ -23,8 +23,7 @@ const readerTheme = (() => {
     root.dataset.theme = dark ? 'dark' : 'light';
     colorScheme.content = root.dataset.theme;
     themeColor.content = dark ? '#191512' : '#f6eee4';
-    const toggle = document.getElementById('theme-toggle');
-    if (toggle) toggle.checked = dark;
+    for (const toggle of document.querySelectorAll('[data-theme-toggle]')) toggle.checked = dark;
   }
 
   function set(theme) {
@@ -34,12 +33,13 @@ const readerTheme = (() => {
 
   apply(get());
   document.addEventListener('DOMContentLoaded', () => {
-    const toggle = document.getElementById('theme-toggle');
-    toggle.checked = root.dataset.theme === 'dark';
-    toggle.addEventListener('change', () => {
-      set(toggle.checked ? 'dark' : 'light');
-      dispatchEvent(new Event('reader-theme-change'));
-    });
+    for (const toggle of document.querySelectorAll('[data-theme-toggle]')) {
+      toggle.checked = root.dataset.theme === 'dark';
+      toggle.addEventListener('change', () => {
+        set(toggle.checked ? 'dark' : 'light');
+        dispatchEvent(new Event('reader-theme-change'));
+      });
+    }
   });
   addEventListener('storage', event => {
     if (event.storageArea === localStorage && (event.key === preferencePrefix + 'theme' || event.key === null)) apply(get());
