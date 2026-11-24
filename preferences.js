@@ -22,7 +22,7 @@ const readerTheme = (() => {
     const dark = theme === 'dark';
     root.dataset.theme = dark ? 'dark' : 'light';
     colorScheme.content = root.dataset.theme;
-    themeColor.content = dark ? '#191512' : '#f6eee4';
+    themeColor.content = dark ? '#0b0d12' : '#faf8f5';
     for (const toggle of document.querySelectorAll('[data-theme-toggle]')) toggle.checked = dark;
   }
 

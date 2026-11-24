@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; manifest-src 'self'; worker-src 'self'; connect-src https://api.github.com; form-action 'none'; base-uri 'none'; object-src 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta name="theme-color" content="#f6eee4">
+  <meta name="theme-color" content="#faf8f5">
   <title>Писания</title>
   <script src="preferences.js"></script>
   <link rel="stylesheet" href="flow.css">
@@ -24,33 +24,29 @@
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="#library"><img class="brand-mark" src="icon-192.png?v=liahona" width="32" height="32" alt="">Писания</a>
-      <form id="jump-form" class="jump-form" role="search">
-        <label class="sr-only" for="jump-input">Книга, глава и стих</label>
-        <input type="search" id="jump-input" placeholder="Например, Ин. 3:16" required>
-        <button type="submit">Перейти</button>
-      </form>
+      <a class="brand" href="#library"><img class="brand-mark" src="icon-192.png?v=liahona" width="32" height="32" alt="Писания"></a>
+
       <button class="button" id="toc-toggle" type="button" aria-controls="toc-panel" aria-expanded="false">Оглавление</button>
+      <button id="reading-settings-toggle" class="button" type="button" aria-label="Настройки текста" aria-controls="reading-settings" aria-expanded="false">Аа</button>
     </div>
   </header>
   <nav class="main-nav" aria-label="Основная навигация">
-    <a id="home-link" href="#library" aria-label="Главная">
+    <a id="home-link" href="#library" aria-label="Библиотека">
       <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M3 11 12 3l9 8M5 9.25V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.25M10 21v-7h4v7"/>
-      </svg>
+      </svg> Библиотека
+    </a>
+    <a id="read-link" href="#bible/GEN/1/1">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6C9 4 5 4 2 5v14c3-1 7-1 10 1 3-2 7-2 10-1V5c-3-1-7-1-10 1zm0 0v14"/></svg>
+      Чтение
     </a>
     <button type="button" data-open-notes aria-label="Заметки" aria-haspopup="dialog" aria-controls="notes-dialog">
       <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <rect x="5" y="3" width="15" height="18" rx="2"/>
         <path d="M3 7h4m-4 5h4m-4 5h4m4-8h5m-5 4h5"/>
-      </svg>
+      </svg> Заметки
     </button>
-    <a id="settings-link" href="#settings" aria-label="Настройки">
-      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M10.2 2.75h3.6l.5 2.9c.65.23 1.25.58 1.8 1.03l2.78-1 1.8 3.12-2.25 1.91c.16.84.16 1.74 0 2.58l2.25 1.91-1.8 3.12-2.78-1c-.55.45-1.15.8-1.8 1.03l-.5 2.9h-3.6l-.5-2.9a6.4 6.4 0 0 1-1.8-1.03l-2.78 1-1.8-3.12 2.25-1.91a6.7 6.7 0 0 1 0-2.58L3.32 8.8l1.8-3.12 2.78 1c.55-.45 1.15-.8 1.8-1.03L10.2 2.75Z"/>
-        <circle cx="12" cy="12" r="3"/>
-      </svg>
-    </a>
+
   </nav>
   <main>
     <div class="page-layout">
@@ -60,15 +56,21 @@
             <h2 id="toc-title">Оглавление</h2>
             <button id="toc-close" type="button" aria-label="Закрыть оглавление">×</button>
           </div>
+          <form id="jump-form" class="jump-form" role="search">
+            <label class="sr-only" for="jump-input">Книга, глава и стих</label>
+            <input type="search" id="jump-input" placeholder="Например, Ин. 3:16" required>
+            <button type="submit">Перейти</button>
+          </form>
+          <p id="jump-error" class="error" role="status" hidden></p>
           <nav id="toc-content" aria-labelledby="toc-title"></nav>
         </div>
       </aside>
       <div class="page-content">
-        <p id="jump-error" class="error" role="status" hidden></p>
+
         <p id="book-file-status" class="book-file-status" role="status" hidden></p>
         <input id="book-file" type="file" accept=".epub,application/epub+zip" hidden>
         <section id="library-view" aria-labelledby="library-title" hidden>
-          <h1 id="library-title" class="sr-only" tabindex="-1">Главная</h1>
+          <h1 id="library-title" tabindex="-1">Библиотека Писаний</h1>
           <a class="continue" id="continue-link" hidden>
             <span class="continue-copy">
               <span class="continue-label">Продолжить чтение</span>
@@ -140,7 +142,7 @@
                 <p id="collection-label" class="collection"></p>
                 <h1 id="reader-title" tabindex="-1"></h1>
               </div>
-              <button id="reading-settings-toggle" class="button" type="button" aria-label="Настройки текста" aria-controls="reading-settings" aria-expanded="false">Аа</button>
+
             </header>
             <article id="passage" aria-labelledby="reader-title" aria-busy="false"></article>
             <div id="selection-actions" role="group" aria-label="Действия с выбранным текстом" hidden>
@@ -194,6 +196,7 @@
             <div data-reading-font-custom></div>
           </details>
           <div class="reading-size-control" data-reading-size-control></div>
+          <a id="settings-link" class="button" href="#settings">Все настройки</a>
           <label class="settings-row reading-theme-setting">
             Тёмная тема
             <input type="checkbox" data-theme-toggle>

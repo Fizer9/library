@@ -622,6 +622,12 @@ async function render() {
   library.hidden = Boolean(place || contentsRoute || showSettings);
   settings.hidden = !showSettings;
   jumpForm.hidden = tocToggle.hidden = showSettings;
+  tocToggle.textContent = place ? titleFor(place) : 'Оглавление';
+  tocToggle.setAttribute('aria-label', place ? `Выбрать главу, ${titleFor(place)}` : 'Оглавление');
+  readingSettingsToggle.hidden = showSettings;
+  const lastPlace = parseRoute(readPreference('last') ?? '');
+  $('read-link').href = place ? hash : lastPlace ? route(lastPlace) : '#bible/GEN/1/1';
+  $('read-link').setAttribute('aria-current', place ? 'page' : 'false');
   contents.hidden = !contentsRoute;
   $('home-link').setAttribute('aria-current', library.hidden ? 'false' : 'page');
   $('settings-link').setAttribute('aria-current', showSettings ? 'page' : 'false');
@@ -1027,7 +1033,10 @@ addEventListener('hashchange', () => {
 jumpForm.addEventListener('submit', event => {
   event.preventDefault();
   const destination = parseReference($('jump-input').value, currentPlace?.edition ?? 'bible');
-  if (destination && parseRoute(route(destination))) open(destination);
+  if (destination && parseRoute(route(destination))) {
+    if (tocDialog.open) closeToc();
+    open(destination);
+  }
   else {
     $('jump-error').textContent = 'Не удалось найти это место. Попробуй «Ин. 3:16» или «2 Нефий 31:5».';
     $('jump-error').hidden = false;
