@@ -87,7 +87,7 @@ button, summary { cursor: pointer; }
   z-index: 2;
   height: var(--bottom-nav-height);
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 8rem));
+  grid-template-columns: repeat(4, minmax(0, 8rem));
   justify-content: center;
   gap: 8px;
   padding-block: .375rem calc(.375rem + env(safe-area-inset-bottom, 0px));
@@ -389,4 +389,3 @@ body:has(.personal-dialog[open]) { overflow: hidden; }
 #passage .verse { margin-block: .45rem; padding: .65rem .5rem; border-radius: .8rem; }
 :root[data-theme=dark] #passage .verse:not([aria-current=true]) { background: var(--paper); }
 .verse-number { justify-self: center; width: auto; min-width: 1.6em; padding: .22em; border-radius: .45rem; background: var(--field); }
-#settings-link { margin-block: .75rem; }
